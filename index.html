@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="de" data-theme="glas">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Unverschlüsselt aufgerufen? Sofort auf https wechseln. http und https sind für den Browser
+         verschiedene Adressen mit getrenntem Speicher, und ohne https gibt es weder Offline noch Kamera.
+         Lokale Tests (localhost, IP-Adressen) bleiben ausgenommen. -->
+    <script>
+      if (location.protocol === 'http:' && !/^(localhost|\d+\.\d+\.\d+\.\d+|\[.*\])$/.test(location.hostname)) {
+        location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+      }
+    </script>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Baumängel</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Für "Zum Home-Bildschirm" auf dem iPad -->
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#edf1f5" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Baumängel" />
+    <!-- iPad: Adressen, Telefonnummern usw. nicht selbst verlinken (Adresse öffnet sonst Apple Karten).
+         Die Karte gibt es über "In Google Maps", das geht auf allen Geräten gleich. -->
+    <meta name="format-detection" content="telephone=no, address=no, email=no, date=no" />
+  </head>
+  <body>
+    <!-- Startseite mit den Projekten -->
+    <div id="home-view">
+      <main class="home-content">
+        <div class="home-head">
+          <h2 class="home-title">Projekte</h2>
+          <p id="app-info"></p>
+        </div>
+        <div id="backup-ready" class="glass" hidden>
+          <span id="backup-ready-text"></span>
+          <button id="backup-save-btn" class="btn primary">Datei sichern</button>
+          <button id="backup-close-btn" class="btn icon" aria-label="Schließen">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+        <!-- Suche und Sicherung aller Projekte, erst sichtbar, wenn es Projekte gibt -->
+        <div id="home-tools" hidden>
+        <div id="project-search">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.500 17a6.500 6.500 0 1 0 0-13 6.500 6.500 0 0 0 0 13ZM15.300 15.300 20 20" /></svg>
+          <input id="project-search-input" type="search" autocomplete="off" enterkeyhint="search" placeholder="Projekt oder Adresse suchen" aria-label="Projekte suchen" />
+          <button id="project-search-clear" class="btn icon" aria-label="Suche leeren" hidden>
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+        <button id="backup-all-btn" class="btn soft" aria-label="Alle Projekte sichern">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4M8 11H5v9h14v-9h-3" /></svg>
+          Alle sichern
+        </button>
+        </div>
+        <div id="project-list"></div>
+      </main>
+
+      <!-- Schwebende Leiste, die Projekte laufen darunter durch -->
+      <header class="float-bar home-bar">
+        <h1 class="app-title cap glass">
+          <!-- Bereich wählen: zeigt das Logo des gewählten Büros, siehe divisions.ts -->
+          <button id="division-btn" class="division-pick" aria-haspopup="true" aria-expanded="false">
+            <img id="division-logo" class="app-logo" src="/logo-glas.png" alt="" />
+            <span id="division-none" class="division-none" hidden>Ohne Bereich</span>
+            <span class="plan-chevron">
+              <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
+            </span>
+          </button>
+          <span class="sep"></span>
+          <span class="app-name">Baumängel</span>
+        </h1>
+        <div class="cap glass home-actions">
+          <button id="profile-btn" class="btn" aria-label="Profil wählen">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.500 20a7.500 7.500 0 0 1 15 0" /></svg>
+            <span id="profile-label" class="label">Profil wählen</span>
+          </button>
+          <button id="import-btn" class="btn" aria-label="Backup importieren">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14" /></svg>
+            <span class="label">Backup importieren</span>
+          </button>
+          <input id="import-input" type="file" hidden />
+          <button id="new-project-btn" class="btn primary">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            <span class="label">Neues Projekt</span>
+          </button>
+          <button id="home-menu-btn" class="btn icon" aria-label="Darstellung" aria-haspopup="true" aria-expanded="false">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" /></svg>
+          </button>
+        </div>
+      </header>
+      <div id="division-menu" class="menu glass-thick" hidden>
+        <p class="menu-label">Bereich</p>
+        <div id="division-list"></div>
+      </div>
+      <div id="home-menu" class="menu glass-thick" hidden>
+        <p class="menu-label">Darstellung</p>
+        <div class="segmented">
+          <button class="seg-btn plain" data-theme-choice="glas">Glas</button>
+          <button class="seg-btn plain" data-theme-choice="dunkel">Dunkel</button>
+          <button class="seg-btn plain" data-theme-choice="sonne">Sonne</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ein Projekt mit seinen Plänen -->
+    <div id="project-view" hidden>
+      <div class="workspace">
+        <!-- Arbeitsfläche mit dem Plan, sie füllt den ganzen Bildschirm -->
+        <main id="viewport">
+          <div id="empty-hint">
+            <p>Füge einen Bauplan als PDF hinzu.</p>
+            <button id="empty-add-btn" class="btn primary">Plan hinzufügen</button>
+          </div>
+          <div id="stage" hidden>
+            <canvas id="pdf-canvas"></canvas>
+            <div id="pin-layer"></div>
+          </div>
+        </main>
+
+        <!-- Oben: Projekt und Plan links, Liste und Bericht rechts -->
+        <header class="float-bar project-bar">
+          <div class="bar-group">
+            <div class="cap glass plan-cap">
+            <button id="home-btn" class="btn icon" aria-label="Zu den Projekten">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+              <span id="home-dot" hidden></span>
+            </button>
+            <!-- Plan wechseln: zeigt den Namen des aktuellen Plans, das Menü listet alle Pläne -->
+            <button id="plan-btn" class="plan-pick" aria-haspopup="true" aria-expanded="false" disabled>
+              <span id="project-name"></span>
+              <span class="plan-pick-row">
+                <span id="plan-name" class="plan-name">Kein Plan</span>
+                <span class="plan-chevron">
+                  <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5" /></svg>
+                </span>
+              </span>
+            </button>
+            </div>
+            <div id="page-controls" class="cap glass" hidden>
+              <button id="page-prev" class="btn icon" aria-label="Vorherige Seite">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+              </button>
+              <select id="page-select" aria-label="Seite wählen"></select>
+              <button id="page-next" class="btn icon" aria-label="Nächste Seite">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
+              </button>
+            </div>
+          </div>
+          <div class="cap glass project-actions">
+            <button id="list-btn" class="btn" aria-expanded="false" disabled>
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.500 6h.01M4.500 12h.01M4.500 18h.01" /></svg>
+              <span id="list-count" class="label">Mängel 0</span>
+            </button>
+            <button id="report-btn" class="btn" disabled>
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6" /></svg>
+              <span class="label">Bericht</span>
+            </button>
+            <button id="theme-btn" class="btn icon" aria-label="Darstellung" aria-haspopup="true" aria-expanded="false">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z" /></svg>
+            </button>
+            <button id="more-btn" class="btn icon" aria-label="Weitere Aktionen" aria-haspopup="true" aria-expanded="false">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h.01M12 12h.01M19 12h.01" /></svg>
+            </button>
+          </div>
+        </header>
+
+        <div id="plan-menu" class="menu glass-thick" hidden>
+          <div class="plan-menu-head">
+            <p id="plan-menu-label" class="menu-label">Pläne</p>
+            <button id="plan-order-btn" class="btn link">Reihenfolge</button>
+          </div>
+          <div id="plan-menu-list" class="plan-menu-list"></div>
+          <button id="plan-menu-add" class="menu-item plan-menu-add">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            Plan hinzufügen
+          </button>
+        </div>
+
+        <div id="more-menu" class="menu glass-thick" hidden>
+          <button id="project-edit-btn" class="menu-item">Projekt bearbeiten</button>
+          <button id="inspections-btn" class="menu-item">Begehungen</button>
+          <a id="project-maps-link" class="menu-item" target="_blank" rel="noopener" hidden>In Google Maps</a>
+          <button id="open-btn" class="menu-item">Plan hinzufügen</button>
+          <input id="file-input" type="file" accept="application/pdf" multiple hidden />
+          <button id="plan-replace-btn" class="menu-item" disabled>Plan ersetzen</button>
+          <input id="plan-replace-input" type="file" accept="application/pdf" hidden />
+          <button id="plan-delete-btn" class="menu-item danger" disabled>Plan löschen</button>
+          <button id="profile-switch-btn" class="menu-item">Profil wählen</button>
+          <!-- Auf dem Telefon ist für den eigenen Knopf kein Platz -->
+          <div class="narrow-only">
+            <p class="menu-label">Darstellung</p>
+            <div class="segmented">
+              <button class="seg-btn plain" data-theme-choice="glas">Glas</button>
+              <button class="seg-btn plain" data-theme-choice="dunkel">Dunkel</button>
+              <button class="seg-btn plain" data-theme-choice="sonne">Sonne</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="theme-menu" class="menu glass-thick" hidden>
+          <p class="menu-label">Darstellung</p>
+          <div class="segmented">
+            <button class="seg-btn plain" data-theme-choice="glas">Glas</button>
+            <button class="seg-btn plain" data-theme-choice="dunkel">Dunkel</button>
+            <button class="seg-btn plain" data-theme-choice="sonne">Sonne</button>
+          </div>
+        </div>
+
+        <!-- Erinnerung an das Backup -->
+        <div id="backup-reminder" class="glass" role="status" hidden>
+          <span id="backup-reminder-text"></span>
+          <button id="backup-reminder-go" class="btn">Zu den Projekten</button>
+          <button id="backup-reminder-close" class="btn icon" aria-label="Erinnerung schließen">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+          </button>
+        </div>
+
+        <div id="place-hint" class="pill glass-thick" hidden>Tippe auf den Plan, um einen Punkt zu setzen</div>
+
+        <!-- Zoom -->
+        <div id="zoom-cap" class="cap glass">
+          <button id="zoom-in" class="btn icon" aria-label="Vergrößern" disabled>
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          </button>
+          <button id="fit-btn" class="btn icon" aria-label="Plan einpassen" disabled>
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+          </button>
+          <button id="zoom-out" class="btn icon" aria-label="Verkleinern" disabled>
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14" /></svg>
+          </button>
+        </div>
+
+        <!-- Unten: Punkt setzen und Filter auf dem Plan -->
+        <div id="dock">
+          <div class="cap glass dock-cap">
+            <button id="mode-btn" class="btn primary" disabled>
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.200 7-11.500A7 7 0 0 0 5 9.500C5 14.800 12 21 12 21ZM12 7v5M9.500 9.500h5" /></svg>
+              <span id="mode-label">Punkt setzen</span>
+            </button>
+            <div id="plan-filter">
+              <span class="sep"></span>
+              <button class="btn filter" data-level="" aria-label="Alle Mängel">Alle</button>
+              <button class="btn filter wichtig" data-level="wichtig" aria-label="Nur Wichtig"><span class="sw"></span><span class="count"></span></button>
+              <button class="btn filter relevant" data-level="relevant" aria-label="Nur Relevant"><span class="sw"></span><span class="count"></span></button>
+              <button class="btn filter hinweis" data-level="hinweis" aria-label="Nur Hinweis"><span class="sw"></span><span class="count"></span></button>
+              <button id="filter-hide-done" class="btn filter icon" aria-label="Erledigte ausblenden">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7" /></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Aufklappbare Liste aller Mängel -->
+        <nav id="defect-list" class="sheet glass-thick" aria-label="Mängelliste" hidden>
+          <div class="panel-head">
+            <h2>Mängel</h2>
+            <button id="list-close" class="btn icon" aria-label="Liste schließen">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
+          <div id="list-search" class="search-field">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.500 17a6.500 6.500 0 1 0 0-13 6.500 6.500 0 0 0 0 13ZM15.300 15.300 20 20" /></svg>
+            <input id="list-search-input" type="search" autocomplete="off" enterkeyhint="search" placeholder="Nummer oder Überschrift" aria-label="Mängel suchen" />
+            <button id="list-search-clear" class="btn icon" aria-label="Suche leeren" hidden>
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
+          <div id="defect-list-body" class="sheet-body"></div>
+        </nav>
+
+        <!-- Schnellerfassung direkt am neuen Punkt -->
+        <section id="capture" class="sheet glass-thick" aria-label="Schnellerfassung" hidden>
+          <div class="panel-head">
+            <span id="capture-badge" class="badge"></span>
+            <h2>Neuer Mangel</h2>
+            <button id="capture-close" class="btn icon" aria-label="Schließen">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
+          <div class="sheet-body">
+            <button id="capture-camera-btn" class="btn primary wide big">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4zM12 16.500a3.500 3.500 0 1 0 0-7 3.500 3.500 0 0 0 0 7Z" /></svg>
+              Foto aufnehmen
+            </button>
+            <div id="capture-photos" class="photos"></div>
+            <label class="field">
+              Überschrift
+              <input id="capture-title" type="text" autocomplete="off" placeholder="Tippen oder Baustein wählen" />
+            </label>
+            <div id="capture-blocks" class="chips"></div>
+            <div class="segmented importance-buttons">
+              <button class="seg-btn wichtig" data-importance="wichtig" aria-pressed="false"><span class="sw"></span>Wichtig</button>
+              <button class="seg-btn relevant" data-importance="relevant" aria-pressed="false"><span class="sw"></span>Relevant</button>
+              <button class="seg-btn hinweis" data-importance="hinweis" aria-pressed="false"><span class="sw"></span>Hinweis</button>
+            </div>
+          </div>
+          <div class="capture-actions">
+            <button id="capture-details" class="btn soft">Alle Details</button>
+            <button id="capture-next" class="btn primary">Nächster Punkt</button>
+          </div>
+        </section>
+
+        <!-- Bearbeitungsfenster für den ausgewählten Mangel -->
+        <aside id="panel" class="sheet glass-thick" aria-label="Mangel bearbeiten" hidden>
+          <div class="panel-head">
+            <span id="panel-badge" class="badge"></span>
+            <h2 id="panel-heading">Mangel</h2>
+            <span id="panel-late" hidden>Überfällig</span>
+            <button id="panel-close" class="btn icon" aria-label="Schließen">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
+
+          <div id="panel-body" class="sheet-body">
+            <input id="pin-title" class="title-input" type="text" autocomplete="off" aria-label="Überschrift" placeholder="Überschrift" />
+
+            <div class="photos">
+              <button id="photo-camera-btn" class="add-photo main">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4zM12 16.500a3.500 3.500 0 1 0 0-7 3.500 3.500 0 0 0 0 7Z" /></svg>
+                Aufnehmen
+              </button>
+              <div id="photo-grid"></div>
+              <button id="photo-gallery-btn" class="add-photo">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 16l5-5 4 4 2.500-2.500L20 17M15.500 9.500h.01" /></svg>
+                Auswählen
+              </button>
+            </div>
+            <input id="photo-camera" type="file" accept="image/*" capture="environment" hidden />
+            <input id="photo-gallery" type="file" accept="image/*" multiple hidden />
+
+            <div class="segmented importance-buttons">
+              <button class="seg-btn wichtig" data-importance="wichtig" aria-pressed="false"><span class="sw"></span>Wichtig</button>
+              <button class="seg-btn relevant" data-importance="relevant" aria-pressed="false"><span class="sw"></span>Relevant</button>
+              <button class="seg-btn hinweis" data-importance="hinweis" aria-pressed="false"><span class="sw"></span>Hinweis</button>
+            </div>
+
+            <div>
+              <div class="notes-head">
+                <label class="lab" for="pin-notes">Notizen</label>
+                <button id="text-blocks-btn" class="btn link">Textbaustein</button>
+              </div>
+              <textarea id="pin-notes" class="in" rows="3"></textarea>
+            </div>
+
+            <div class="rows">
+              <label class="row">
+                Gewerk
+                <input id="pin-trade" type="text" list="trade-options" autocomplete="off" />
+                <datalist id="trade-options"></datalist>
+              </label>
+              <label class="row">
+                Firma
+                <input id="pin-company" type="text" list="company-options" autocomplete="off" />
+                <datalist id="company-options"></datalist>
+              </label>
+              <div id="created-by-row" class="row" hidden>
+                Erfasst von
+                <span id="pin-created-by" class="row-value"></span>
+              </div>
+              <label class="row">
+                Festgestellt
+                <input id="pin-found" type="date" />
+              </label>
+              <label class="row">
+                Frist
+                <input id="pin-due" type="date" />
+              </label>
+            </div>
+
+            <button id="done-btn" class="switch-row" aria-pressed="false">
+              Erledigt
+              <span class="switch"></span>
+            </button>
+
+            <div id="done-date-field" class="rows" hidden>
+              <label class="row">
+                Erledigt am
+                <input id="pin-done-at" type="date" />
+              </label>
+            </div>
+
+            <!-- Punkte sind gegen versehentliches Verschieben gesperrt, siehe "Sperre" in main.ts -->
+            <button id="move-btn" class="switch-row move-row" aria-pressed="false">
+              <span>
+                Verschieben
+                <span id="move-hint" class="switch-hint">Gesperrt</span>
+              </span>
+              <span class="switch"></span>
+            </button>
+
+            <button id="delete-btn" class="menu-item danger centered" disabled>Punkt löschen</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- Foto markieren und beschriften -->
+    <!-- Kamera am Laptop oder PC, siehe camera.ts -->
+    <div id="camera-dialog" hidden>
+      <div class="dialog-box camera-box glass-thick" role="dialog" aria-label="Foto aufnehmen">
+        <h2>Foto aufnehmen</h2>
+        <div class="camera-view">
+          <video id="camera-video" playsinline muted></video>
+          <p id="camera-message" role="status" hidden></p>
+        </div>
+        <select id="camera-select" class="in" aria-label="Kamera wählen" hidden></select>
+        <div class="dialog-buttons">
+          <button id="camera-file" class="btn soft" hidden>Datei wählen</button>
+          <button id="camera-retry" class="btn soft" hidden>Erneut versuchen</button>
+          <button id="camera-cancel" class="btn soft">Abbrechen</button>
+          <button id="camera-shoot" class="btn primary" disabled>Auslösen</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="photo-editor" hidden>
+      <div class="editor-bar">
+        <div class="cap glass">
+          <button class="btn" data-tool="arrow" aria-pressed="true">Pfeil</button>
+          <button class="btn" data-tool="circle" aria-pressed="false">Kreis</button>
+          <button id="editor-undo" class="btn">Rückgängig</button>
+        </div>
+        <div class="cap glass">
+          <button id="editor-done" class="btn primary">Fertig</button>
+        </div>
+      </div>
+      <div id="editor-stage">
+        <canvas id="editor-canvas"></canvas>
+      </div>
+      <div class="editor-foot glass">
+        <label class="field">
+          Bildunterschrift
+          <input id="editor-caption" type="text" maxlength="80" autocomplete="off" />
+        </label>
+        <p id="editor-message" role="alert"></p>
+      </div>
+    </div>
+
+    <!-- Fenster "Textbausteine" -->
+    <div id="text-blocks-dialog" hidden>
+      <div class="dialog-box glass-thick">
+        <h2>Textbausteine</h2>
+        <p class="dialog-hint">
+          Antippen fügt den Text ein: in die Überschrift, solange sie leer ist, sonst in die Notizen.
+        </p>
+        <label class="field">
+          Suchen oder neu eingeben
+          <input id="text-block-input" type="text" autocomplete="off" />
+        </label>
+        <button id="text-block-add" class="btn soft wide" disabled>Als neuen Baustein speichern</button>
+        <p id="text-block-message" role="alert"></p>
+        <div id="text-block-list"></div>
+        <div class="dialog-buttons">
+          <button id="text-blocks-close" class="btn soft">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fenster "Neues Projekt" und "Projekt bearbeiten" -->
+    <div id="project-dialog" hidden>
+      <div class="dialog-box glass-thick">
+        <h2 id="project-dialog-title">Neues Projekt</h2>
+        <label class="field">
+          Projektname
+          <input id="project-form-name" type="text" maxlength="120" autocomplete="off" />
+        </label>
+        <label class="field">
+          Adresse
+          <textarea id="project-form-address" rows="3" placeholder="Straße und Hausnummer&#10;PLZ Ort"></textarea>
+        </label>
+        <p class="dialog-hint">Die Adresse erscheint auch im Bericht und hilft bei der Suche.</p>
+        <h3 class="dialog-subheading">Beteiligte und Projektnummer</h3>
+        <p class="dialog-hint">Alle freiwillig. Sie stehen im Bericht auf der Seite „Projektangaben“, die Projektnummer auf dem Deckblatt. Ergänzen lassen sie sich auch unter „Bericht erstellen“.</p>
+        <!-- Felder kommen aus src/parties.ts -->
+        <div id="project-form-parties"></div>
+        <label class="field">
+          Bereich
+          <select id="project-form-division" class="in"></select>
+        </label>
+        <p class="dialog-hint">Bestimmt, unter welchem Logo auf der Startseite das Projekt erscheint, und das Logo im Bericht.</p>
+        <p id="project-dialog-message" role="alert"></p>
+        <div class="dialog-buttons">
+          <button id="project-dialog-cancel" class="btn soft">Abbrechen</button>
+          <button id="project-dialog-save" class="btn primary" disabled>Anlegen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fenster "Profil": wer gerade mit dem Gerät arbeitet -->
+    <div id="profile-dialog" hidden>
+      <div class="dialog-box glass-thick">
+        <h2>Wer arbeitet gerade?</h2>
+        <p id="profile-hint" class="dialog-hint"></p>
+        <div id="profile-list"></div>
+        <label class="field">
+          Neues Profil
+          <input id="profile-input" type="text" maxlength="60" autocomplete="name" placeholder="Vor- und Nachname" />
+        </label>
+        <button id="profile-add" class="btn soft wide" disabled>Anlegen und wählen</button>
+        <p id="profile-message" role="alert"></p>
+        <div class="dialog-buttons">
+          <button id="profile-close" class="btn soft">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fenster "Bericht erstellen" -->
+    <div id="report-dialog" hidden>
+      <div class="dialog-box wide-box glass-thick">
+        <div class="report-main">
+          <h2>Bericht erstellen</h2>
+
+          <section id="report-form">
+            <label class="field">
+              Projektname
+              <input id="report-name" type="text" autocomplete="off" />
+            </label>
+            <label class="field">
+              Adresse (gilt fürs ganze Projekt)
+              <textarea id="report-address" rows="2"></textarea>
+            </label>
+            <h3 class="dialog-subheading">Beteiligte und Projektnummer (gelten fürs ganze Projekt)</h3>
+            <!-- Felder kommen aus src/parties.ts -->
+            <div id="report-parties"></div>
+            <h3 class="dialog-subheading">Begehungen</h3>
+            <div class="report-inspections">
+              <span id="report-inspections-text"></span>
+              <button id="report-inspections-btn" class="btn soft">Begehungen bearbeiten</button>
+            </div>
+            <div class="field-row">
+              <label class="field">
+                Datum
+                <input id="report-date" type="date" />
+              </label>
+              <label class="field">
+                Ersteller
+                <input id="report-creator" type="text" autocomplete="name" />
+              </label>
+            </div>
+
+            <div class="field">
+              Titelbild
+              <div class="report-image">
+                <img id="report-cover-preview" alt="" hidden />
+                <button id="report-cover-btn" class="btn soft">Bild auswählen</button>
+                <button id="report-cover-remove" class="btn danger" hidden>Entfernen</button>
+                <input id="report-cover-input" type="file" accept="image/*" hidden />
+              </div>
+            </div>
+            <div class="field">
+              Firmenlogo
+              <div class="report-image">
+                <img id="report-logo-preview" alt="" hidden />
+                <button id="report-logo-btn" class="btn soft">Bild auswählen</button>
+                <button id="report-logo-reset" class="btn soft" hidden>Standardlogo</button>
+                <button id="report-logo-remove" class="btn danger" hidden>Entfernen</button>
+                <input id="report-logo-input" type="file" accept="image/*" hidden />
+              </div>
+            </div>
+
+            <p id="report-message" role="alert"></p>
+            <div class="dialog-buttons">
+              <button id="report-close" class="btn soft">Schließen</button>
+              <button id="report-create" class="btn primary">Bericht erstellen</button>
+            </div>
+          </section>
+
+          <section id="report-progress" hidden>
+            <p id="report-progress-text" role="status"></p>
+            <progress id="report-progress-bar" value="0" max="1"></progress>
+            <div class="dialog-buttons">
+              <button id="report-cancel" class="btn soft">Abbrechen</button>
+            </div>
+          </section>
+
+          <section id="report-done" hidden>
+            <p id="report-done-text" role="status"></p>
+            <div class="dialog-buttons">
+              <button id="report-done-close" class="btn soft">Schließen</button>
+              <button id="report-save" class="btn primary">Datei sichern</button>
+            </div>
+          </section>
+        </div>
+
+        <!-- Vorschau von Deckblatt und Projektangaben, aufgebaut wie drawCover und drawProjectInfo in report.ts -->
+        <div class="report-side" aria-hidden="true">
+          <div class="cover-page">
+            <div class="cover-top">
+              <span class="cover-heading">Mängelbericht</span>
+              <img id="cover-logo" alt="" hidden />
+            </div>
+            <div class="cover-line"></div>
+            <img id="cover-photo" alt="" hidden />
+            <div id="cover-name"></div>
+            <div id="cover-address"></div>
+            <div id="cover-number"><span>Projektnummer:</span> <span id="cover-number-value"></span></div>
+          </div>
+          <div class="cover-page info-page">
+            <span class="info-heading">Projektangaben</span>
+            <!-- Vor "Datum" kommen die Beteiligten (renderCover in report-dialog.ts) -->
+            <dl id="cover-meta" class="cover-meta">
+              <dt id="cover-date-label">Datum</dt>
+              <dd id="cover-date"></dd>
+              <dt id="cover-creator-label">Ersteller</dt>
+              <dd id="cover-creator"></dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fenster "Begehungen": Liste und, nach Antippen, eine Begehung mit ihren Teilnehmern.
+         Steht hinter "Bericht erstellen", damit es von dort aus geöffnet darüber liegt. -->
+    <div id="inspections-dialog" hidden>
+      <div class="dialog-box glass-thick">
+        <section id="inspections-list-view">
+          <h2>Begehungen</h2>
+          <p class="dialog-hint">
+            Wer an welchem Tag dabei war. Im Bericht bekommt jede Begehung eine eigene Tabelle.
+          </p>
+          <button id="inspection-new" class="btn primary wide">Neue Begehung</button>
+          <div id="inspection-list"></div>
+          <p id="inspections-message" role="alert"></p>
+          <div class="dialog-buttons">
+            <button id="inspections-close" class="btn soft">Schließen</button>
+          </div>
+        </section>
+
+        <section id="inspection-edit-view" hidden>
+          <h2>Begehung</h2>
+          <label class="field">
+            Datum
+            <input id="inspection-date" type="date" />
+          </label>
+          <div class="participant-head" aria-hidden="true">
+            <span>Name</span>
+            <span>Amt / Büro / Firma</span>
+          </div>
+          <div id="participant-list"></div>
+          <button id="participant-add" class="btn soft wide">Teilnehmer hinzufügen</button>
+          <!-- Vorschläge beim Tippen: Namen und Firmen aus allen bisherigen Begehungen -->
+          <datalist id="participant-names"></datalist>
+          <datalist id="participant-orgs"></datalist>
+          <div class="dialog-buttons">
+            <button id="inspection-delete" class="btn soft danger">Begehung löschen</button>
+            <span class="spacer"></span>
+            <button id="inspection-done" class="btn primary">Fertig</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Kurze Meldungen, verschwinden von selbst -->
+    <div id="status" role="status"></div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

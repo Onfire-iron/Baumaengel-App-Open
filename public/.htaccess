@@ -1,0 +1,29 @@
+# Baumängel-App auf Apache. Wird beim Bauen nach dist/ kopiert.
+# Die App besteht nur aus fertigen Dateien: kein PHP, keine Datenbank, keine Umleitungen nötig
+# (die Adressen innerhalb der App stehen hinter "#").
+# Alles steht in <IfModule>, damit ein fehlendes Modul nie einen Serverfehler auslöst.
+# HTTPS erzwingen bitte in den Domain-Einstellungen beim Hoster, nicht hier.
+
+# Dateitypen, die Apache nicht überall von selbst kennt
+<IfModule mod_mime.c>
+  AddType application/wasm .wasm
+  AddType application/manifest+json .webmanifest
+  AddType text/javascript .mjs
+  AddType font/woff2 .woff2
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "same-origin"
+
+  # Diese Dateien entscheiden, ob eine neue App-Version ankommt: jedes Mal beim Server nachfragen
+  <FilesMatch "^(index\.html|sw\.js|registerSW\.js|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+
+  # Dateien in assets/ tragen eine Prüfsumme im Namen und ändern sich nie
+  <If "%{REQUEST_URI} =~ m#^/assets/#">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </If>
+</IfModule>

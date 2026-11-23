@@ -1,0 +1,19 @@
+{
+  // Einstellungen für den App-Code in src/. TypeScript prüft hier nur (noEmit),
+  // das Übersetzen nach JavaScript übernimmt beim Bauen Vite.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"], // kennt import.meta.env, CSS-Importe und "?worker&url"
+    "noEmit": true,
+    "allowImportingTsExtensions": true, // erlaubt import './db.ts'
+    "verbatimModuleSyntax": true, // reine Typen müssen mit "import type" geholt werden
+    "erasableSyntaxOnly": true, // nur Typen, die beim Übersetzen einfach wegfallen
+    "skipLibCheck": true,
+
+    "strict": true
+  },
+  "include": ["src"]
+}
