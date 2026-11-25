@@ -18,18 +18,6 @@ import type { ReportSettings } from './types.ts';
 // Später kommen sie aus den Textbausteinen.
 export const OCCASIONS = ['Termin auf Wunsch der Bauleitung'];
 
-// Vorgabe für die Liste unter "Vorzulegende Unterlagen", solange nichts eingetragen wurde
-export const DEFAULT_REQUIRED_PROOFS = [
-  'Türen und Tore mit Anforderungen an den Feuer- oder Rauchschutz',
-  'Abschottungen von Kabel- und Rohrdurchführungen',
-  'Brandschutzklappen in Lüftungsleitungen',
-  'Trockenbaukonstruktionen mit Anforderungen an den Brandschutz',
-  'Verglasungen mit Brandschutzanforderung',
-  'Feststellanlagen für Türen',
-]
-  .map((item) => `• ${item}`)
-  .join('\n');
-
 // Fester Absatz vor der Liste. recipient ist der Empfänger im Dativ, z. B. "der Musterfirma GmbH"
 // (je Bereich in divisions.ts).
 export function requiredProofsIntro(recipient: string): string {
@@ -46,13 +34,9 @@ export const EXPERTS_TEXT =
 
 export const FINDINGS_TEXT = 'Die bei der Begehung festgestellten Punkte sind in der folgenden Übersicht zusammengestellt.';
 
-// Eingaben mit ihrem Wert, wenn noch nichts eingetragen wurde (undefined = nie geändert)
+// Veranlassung mit ihrer Vorgabe, wenn noch nichts eingetragen wurde (undefined = nie geändert)
 export function occasionOf(settings: Partial<ReportSettings>): string {
   return settings.occasion ?? OCCASIONS[0];
-}
-
-export function requiredProofsOf(settings: Partial<ReportSettings>): string {
-  return settings.requiredProofs ?? DEFAULT_REQUIRED_PROOFS;
 }
 
 export interface TextLine {

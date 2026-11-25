@@ -4,14 +4,12 @@
 
 import { initBulletField } from './bullet-field.ts';
 import {
-  DEFAULT_REQUIRED_PROOFS,
   EXPERTS_TEXT,
   FINDINGS_TEXT,
   OCCASIONS,
   occasionOf,
   parseBullets,
   requiredProofsIntro,
-  requiredProofsOf,
 } from './control-fields.ts';
 import type { TextLine } from './control-fields.ts';
 import { initDateTile, showDate } from './date-tile.ts';
@@ -58,7 +56,6 @@ const occasionChips = document.getElementById('report-occasion-chips') as HTMLEl
 const documentsInput = document.getElementById('report-documents') as HTMLTextAreaElement;
 const executionInput = document.getElementById('report-execution') as HTMLTextAreaElement;
 const proofsInput = document.getElementById('report-proofs') as HTMLTextAreaElement;
-const proofsReset = document.getElementById('report-proofs-reset') as HTMLButtonElement;
 const plansGrid = document.getElementById('report-plans') as HTMLElement;
 const controlSummary = document.getElementById('report-control-summary') as HTMLElement;
 const projectSummary = document.getElementById('report-project-summary') as HTMLElement;
@@ -119,7 +116,7 @@ export async function openReportDialog(project: Project, plans: Plan[], pins: De
   renderOccasionChips();
   documentsInput.value = settings.documents ?? '';
   executionInput.value = settings.executionState ?? '';
-  proofsInput.value = requiredProofsOf(settings);
+  proofsInput.value = settings.requiredProofs ?? '';
   renderPlans();
   formMessage.textContent = '';
   coverOffice.textContent = reportAddress(project.division);
@@ -188,7 +185,6 @@ function showSummaries() {
     executionInput.value.trim() && 'Ausführungsstand',
   ].filter(Boolean);
   controlSummary.textContent = control.length ? control.join(' · ') : 'Noch nichts eingetragen';
-  proofsReset.hidden = proofsInput.value === DEFAULT_REQUIRED_PROOFS;
 
   const number = partyInputs.projectNumber.value.trim();
   const parties = PARTIES.filter(({ key }) => key !== 'projectNumber' && partyInputs[key].value.trim()).length;
@@ -317,6 +313,7 @@ for (const [input, key] of controlFields) {
     showSummaries();
   });
 }
+
 // Die Textfelder wachsen mit ihrem Inhalt, statt selbst zu rollen. Im zugeklappten Abschnitt haben sie
 // keine Höhe, darum auch beim Aufklappen.
 const growing = [documentsInput, executionInput, proofsInput];
@@ -329,12 +326,6 @@ document.getElementById('report-control')!.addEventListener('toggle', () => grow
 
 initBulletField(documentsInput, document.getElementById('report-documents-bullet') as HTMLButtonElement);
 initBulletField(proofsInput, document.getElementById('report-proofs-bullet') as HTMLButtonElement);
-proofsReset.addEventListener('click', () => {
-  proofsInput.value = DEFAULT_REQUIRED_PROOFS;
-  grow(proofsInput);
-  remember({ requiredProofs: undefined });
-  showSummaries();
-});
 
 // ---------- Welche Punkttypen in den Bericht kommen ----------
 

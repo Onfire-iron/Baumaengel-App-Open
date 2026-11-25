@@ -358,7 +358,7 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
   eines gibt). Eingetragen im Berichtsfenster: Veranlassung (Vorgabe aus `OCCASIONS`, später aus den
   Textbausteinen), Unterlagen (mit Aufzählung),
   begangene Gebäudeteile (Auswahl aus den Plänen, `inspectedPlanIds`), Ausführungsstand und die Liste
-  der vorzulegenden Unterlagen (Vorgabe in `DEFAULT_REQUIRED_PROOFS`). Fest im Bericht: der Absatz vor
+  der vorzulegenden Unterlagen (ohne Vorgabe, sie hängt vom Projekt ab). Fest im Bericht: der Absatz vor
   dieser Liste (mit dem Empfänger je Bereich, `recipient` in `divisions.ts`), Sachverständige und
   Abnahmebefund. Alle festen Texte in `control-fields.ts` sind Beispiele und durch eigene zu ersetzen. Leere Eingaben fallen weg. Alles gilt fürs Projekt und kommt ins
   Backup (Format 9, die Plan-ids werden beim Import umgesetzt).

@@ -38,7 +38,6 @@ import {
   occasionOf,
   parseBullets,
   requiredProofsIntro,
-  requiredProofsOf,
 } from './control-fields.ts';
 import type { TextLine } from './control-fields.ts';
 import { reportAddress, reportLogoUrl, reportRecipient } from './divisions.ts';
@@ -709,7 +708,7 @@ function drawControlTable(r: ReportContext, settings: Partial<ReportSettings>, p
     { label: 'Ausführungsstand', blocks: [parseBullets(settings.executionState)] },
     {
       label: 'Vorzulegende Unterlagen zur Durchführung der Baukontrollen',
-      blocks: [[{ bullet: false, text: requiredProofsIntro(recipient) }], parseBullets(requiredProofsOf(settings))],
+      blocks: [[{ bullet: false, text: requiredProofsIntro(recipient) }], parseBullets(settings.requiredProofs)],
     },
     { label: 'Vorzulegende Bescheinigungen von Sachverständigen nach PrüfVO NRW', blocks: [[{ bullet: false, text: EXPERTS_TEXT }]] },
     { label: 'Abnahmebefund', blocks: [[{ bullet: false, text: FINDINGS_TEXT }]] },

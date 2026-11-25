@@ -125,7 +125,7 @@ export interface ReportSettings extends PartyTexts {
   documents?: string; // Unterlagen, Zeilen mit "• " sind Aufzählungspunkte
   inspectedPlanIds?: number[]; // begangene Gebäudeteile: ids der Pläne
   executionState?: string; // Ausführungsstand
-  requiredProofs?: string; // Liste unter "Vorzulegende Unterlagen"
+  requiredProofs?: string; // Liste unter "Vorzulegende Unterlagen", ohne Vorgabe
 }
 
 // Wer gerade mit dem Gerät arbeitet. Gilt nur auf diesem Gerät und kommt nicht ins Backup.
