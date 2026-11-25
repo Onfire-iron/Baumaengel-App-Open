@@ -49,7 +49,9 @@ const FORMAT = 'baumaengel-backup';
 // 5: Bereich (Büro) des Projekts, siehe divisions.ts
 // 6: Beteiligte und Projektnummer im Teil "report", siehe parties.ts
 // 7: Begehungen im Teil "report", siehe inspections.ts
-const VERSION = 7;
+// 8: Stufen Mangel, Hinweis, Intern statt Wichtig, Relevant, Hinweis (ältere werden umgesetzt,
+//    siehe readMarking) und die Gewerke-Liste
+const VERSION = 8;
 
 const COLLECTION_FORMAT = 'baumaengel-sammelbackup';
 const COLLECTION_VERSION = 1;
@@ -155,6 +157,7 @@ async function writeProject(
     plans: [],
     defects: [],
     textBlocks: (await store.listTextBlocks()).map((block) => block.text),
+    trades: (await store.listTrades()).map((trade) => trade.name),
   };
 
   for (const [index, plan] of plans.entries()) {
@@ -364,6 +367,10 @@ async function importProjectFrom(entries: Entries, folder: string, onProgress?: 
 
     if (Array.isArray(backup.textBlocks)) {
       await store.addMissingTextBlocks(backup.textBlocks.filter((text) => typeof text === 'string' && text) as string[]);
+    }
+
+    if (Array.isArray(backup.trades)) {
+      await store.addMissingTrades(backup.trades.filter((name) => typeof name === 'string' && name.trim()) as string[]);
     }
 
     if (backup.report) {

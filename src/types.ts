@@ -7,7 +7,8 @@
 
 import type { PartyKey } from './parties.ts';
 
-export type Importance = 'wichtig' | 'relevant' | 'hinweis';
+// Mangel: muss behoben werden. Hinweis: gut zu wissen. Intern: nur für den Verfasser, z. B. Rückfragen.
+export type Importance = 'mangel' | 'hinweis' | 'intern';
 
 // Ein Datum als Text im Format JJJJ-MM-TT, null = kein Datum. Siehe defects.ts
 export type IsoDate = string | null;
@@ -88,6 +89,12 @@ export interface TextBlock {
   text: string;
 }
 
+// Eintrag in der Gewerke-Liste (für alle Projekte), siehe trades-dialog.ts
+export interface Trade {
+  id: number;
+  name: string;
+}
+
 // Begehung: wer an welchem Tag dabei war, siehe inspections.ts
 export interface Participant {
   name: string;
@@ -137,6 +144,7 @@ export interface BackupFile {
   plans: BackupPlan[];
   defects: BackupDefect[];
   textBlocks: string[];
+  trades?: string[]; // seit Version 8
   report?: BackupReport; // Backups von Etappe 3 haben diesen Teil noch nicht
 }
 
@@ -184,6 +192,7 @@ export interface IncomingBackupFile {
   plans: (Omit<BackupPlan, 'pageCount'> & { pageCount?: number | null })[];
   defects: IncomingBackupDefect[];
   textBlocks?: unknown;
+  trades?: unknown;
   report?: BackupReport;
 }
 

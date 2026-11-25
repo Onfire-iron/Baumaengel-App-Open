@@ -10,8 +10,8 @@ import { backupReminder } from './backup.ts';
 import {
   DEFAULT_IMPORTANCE,
   IMPORTANCE,
+  IMPORTANCE_PLURAL,
   IMPORTANCE_TEXT,
-  TRADES,
   formatDate,
   isOverdue,
   sortPins,
@@ -33,8 +33,9 @@ import { openReportDialog } from './report-dialog.ts';
 import { normalize, searchWords } from './search.ts';
 import { setStatus } from './status.ts';
 import { openTextBlocks } from './text-blocks.ts';
+import { openTradesDialog } from './trades-dialog.ts';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
-import type { Defect, Importance, Photo, Plan, Project, TextBlock } from './types.ts';
+import type { Defect, Importance, Photo, Plan, Project } from './types.ts';
 
 interface Point {
   x: number;
@@ -98,13 +99,14 @@ const panelClose = document.getElementById('panel-close') as HTMLButtonElement;
 const titleInput = document.getElementById('pin-title') as HTMLInputElement;
 const notesInput = document.getElementById('pin-notes') as HTMLTextAreaElement;
 const textBlocksBtn = document.getElementById('text-blocks-btn') as HTMLButtonElement;
-const tradeInput = document.getElementById('pin-trade') as HTMLInputElement;
+const tradeBtn = document.getElementById('pin-trade-btn') as HTMLButtonElement;
+const tradeText = document.getElementById('pin-trade') as HTMLElement;
 const companyInput = document.getElementById('pin-company') as HTMLInputElement;
-const tradeOptions = document.getElementById('trade-options') as HTMLDataListElement;
 const companyOptions = document.getElementById('company-options') as HTMLDataListElement;
 const foundInput = document.getElementById('pin-found') as HTMLInputElement;
 const dueInput = document.getElementById('pin-due') as HTMLInputElement;
 const createdByRow = document.getElementById('created-by-row') as HTMLElement;
+const dueTile = dueInput.closest('.date-tile') as HTMLElement;
 const createdByText = document.getElementById('pin-created-by') as HTMLElement;
 const doneDateField = document.getElementById('done-date-field') as HTMLElement;
 const doneAtInput = document.getElementById('pin-done-at') as HTMLInputElement;
@@ -147,7 +149,6 @@ const capture = document.getElementById('capture') as HTMLElement;
 const captureBadge = document.getElementById('capture-badge') as HTMLElement;
 const captureTitle = document.getElementById('capture-title') as HTMLInputElement;
 const capturePhotos = document.getElementById('capture-photos') as HTMLElement;
-const captureBlocks = document.getElementById('capture-blocks') as HTMLElement;
 
 // ---------- Zustand der App ----------
 let currentProject: Project | null = null;
@@ -1010,7 +1011,8 @@ window.addEventListener('keydown', (e) => {
   if ((e.target as Element).closest('input, textarea, select')) return; // beim Tippen in Feldern nichts löschen
   // Hinter einem offenen Fenster bleibt der Punkt ausgewählt, darf aber nicht gelöscht werden
   const openDialog =
-    '#photo-editor:not([hidden]), #text-blocks-dialog:not([hidden]), #profile-dialog:not([hidden]), ' +
+    '#photo-editor:not([hidden]), #text-blocks-dialog:not([hidden]), #trades-dialog:not([hidden]), ' +
+    '#profile-dialog:not([hidden]), ' +
     '#project-dialog:not([hidden]), #camera-dialog:not([hidden])';
   if (document.querySelector(openDialog)) return;
   if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId !== null) deleteSelected();
@@ -1212,7 +1214,6 @@ function openCapture() {
   ensurePinVisible(pin);
   clearThumbs();
   renderPhotos();
-  renderCaptureBlocks();
 }
 
 function closeCapture() {
@@ -1242,37 +1243,9 @@ function positionCapture() {
   capture.style.top = `${clamp(y - 120, BAR_TOP, rect.height - capture.offsetHeight - margin)}px`;
 }
 
-async function renderCaptureBlocks() {
-  const pinId = selectedId;
-  let blocks: TextBlock[];
-  try {
-    blocks = await store.listTextBlocks();
-  } catch (err) {
-    console.error(err);
-    captureBlocks.replaceChildren();
-    return;
-  }
-  if (pinId !== selectedId) return; // inzwischen wurde ein anderer Punkt gewählt
-
-  const chips = blocks.slice(0, 6).map((block) => {
-    const chip = createChip(block.text);
-    chip.addEventListener('click', () => insertTextBlock(block.text));
-    return chip;
-  });
-  const more = createChip('Mehr …');
-  more.addEventListener('click', showTextBlocks);
-  captureBlocks.replaceChildren(more, ...chips); // "Mehr" zuerst, sonst läge es außerhalb des Bilds
-  positionCapture();
-}
-
-function createChip(text: string) {
-  const chip = document.createElement('button');
-  chip.className = 'chip';
-  chip.textContent = text;
-  return chip;
-}
-
 document.getElementById('capture-camera-btn')!.addEventListener('click', takePhoto);
+document.getElementById('capture-gallery-btn')!.addEventListener('click', () => photoGallery.click());
+document.getElementById('capture-blocks-btn')!.addEventListener('click', openTextBlocks);
 document.getElementById('capture-close')!.addEventListener('click', () => selectPin(null));
 document.getElementById('capture-details')!.addEventListener('click', openPanel);
 document.getElementById('capture-next')!.addEventListener('click', () => {
@@ -1286,13 +1259,14 @@ function fillPanel() {
   panelHeading.textContent = `Mangel ${getPinNumber(pin)}`;
   titleInput.value = pin.title;
   notesInput.value = pin.notes;
-  tradeInput.value = pin.trade;
+  showTrade(pin);
   companyInput.value = pin.company;
   foundInput.value = pin.foundAt ?? '';
   dueInput.value = pin.dueDate ?? '';
+  showDate(foundInput);
+  showDate(dueInput);
   createdByRow.hidden = !pin.createdBy; // bei älteren Mängeln unbekannt
   createdByText.textContent = pin.createdBy ?? '';
-  fillOptions(tradeOptions, [...TRADES, ...pins.map((p) => p.trade)]);
   fillOptions(companyOptions, pins.map((p) => p.company));
   showMarking(pin);
   panelBody.scrollTop = 0;
@@ -1306,7 +1280,8 @@ function showMarking(pin: Defect) {
   showMovable();
   doneDateField.hidden = !pin.done;
   doneAtInput.value = pin.doneAt ?? '';
-  dueInput.classList.toggle('overdue', isOverdue(pin));
+  showDate(doneAtInput);
+  dueTile.classList.toggle('overdue', isOverdue(pin));
   panelLate.hidden = !isOverdue(pin);
   for (const badge of [panelBadge, captureBadge]) {
     badge.className = `badge ${pin.importance}`;
@@ -1349,35 +1324,34 @@ notesInput.addEventListener('input', () => {
   savePin(pin);
 });
 
-// Textbaustein: füllt zuerst die leere Überschrift, danach kommen die Texte in die Notizen
-function insertTextBlock(text: string) {
+textBlocksBtn.addEventListener('click', openTextBlocks);
+
+// Gewerk: Auswahl aus der Gewerke-Liste im eigenen Fenster, siehe trades-dialog.ts
+function showTrade(pin: Defect) {
+  tradeText.textContent = pin.trade || 'Wählen';
+}
+
+tradeBtn.addEventListener('click', () => {
   const pin = getSelectedPin();
   if (!pin) return;
-  if (pin.title) pin.notes = pin.notes ? `${pin.notes}\n${text}` : text;
-  else pin.title = text;
-  titleInput.value = pin.title;
-  captureTitle.value = pin.title;
-  notesInput.value = pin.notes;
-  savePin(pin);
-  renderList();
-}
-
-function showTextBlocks() {
-  openTextBlocks(insertTextBlock).catch((err) => {
+  openTradesDialog(pin.trade, (trade) => {
+    if (!pins.includes(pin)) return; // inzwischen gelöscht
+    pin.trade = trade;
+    savePin(pin);
+    if (selectedId === pin.id) showTrade(pin);
+    renderList();
+  }).catch((err) => {
     console.error(err);
-    setStatus('Die Textbausteine konnten nicht geladen werden.');
+    setStatus('Die Gewerke konnten nicht geladen werden.');
   });
-}
+});
 
-textBlocksBtn.addEventListener('click', showTextBlocks);
-
-// Gewerk, Firma und Termine. Ein geleertes Datumsfeld heißt: kein Datum.
+// Firma und Termine. Ein geleertes Datumsfeld heißt: kein Datum.
 const detailFields: [
   HTMLInputElement,
-  'trade' | 'company' | 'foundAt' | 'dueDate' | 'doneAt',
+  'company' | 'foundAt' | 'dueDate' | 'doneAt',
   (value: string) => string | null,
 ][] = [
-  [tradeInput, 'trade', (value) => value],
   [companyInput, 'company', (value) => value],
   [foundInput, 'foundAt', (value) => value || null],
   [dueInput, 'dueDate', (value) => value || null],
@@ -1387,12 +1361,57 @@ const detailFields: [
 for (const [input, key, read] of detailFields) {
   input.addEventListener('input', () => {
     const pin = getSelectedPin()!;
-    // Gewerk und Firma liefern immer Text, nur Datumsfelder können null werden (siehe detailFields).
+    // Firma liefert immer Text, nur Datumsfelder können null werden (siehe detailFields).
     // TypeScript kann das je Feld nicht nachvollziehen, darum die Angabe "as string".
     pin[key] = read(input.value) as string;
+    if (input.type === 'date') showDate(input);
     savePin(pin);
     showMarking(pin);
     renderList();
+  });
+}
+
+// Datumskachel: Das Datumsfeld liegt unsichtbar darüber, sichtbar ist das Datum als Text
+function showDate(input: HTMLInputElement) {
+  const tile = input.closest('.date-tile')!;
+  tile.querySelector('.tile-value')!.textContent = input.value ? formatDate(input.value) : 'Kein Datum';
+  tile.classList.toggle('empty', !input.value);
+}
+
+for (const input of [foundInput, dueInput, doneAtInput]) {
+  // Am Rechner öffnet ein Klick auf das Feld die Auswahl nicht von selbst, nur sein Kalender-Symbol.
+  // Mit dem Finger (iPad, Android) macht das Gerät das selbst.
+  input.addEventListener('click', (e) => {
+    if ((e as PointerEvent).pointerType === 'touch' || (e as PointerEvent).pointerType === 'pen') return;
+    try {
+      input.showPicker();
+    } catch {
+      // ältere Browser: dann bleibt es beim Feld selbst
+    }
+  });
+
+  // "×" leert das Datum, nicht jede Datumsauswahl hat dafür einen Knopf
+  const clear = document.createElement('button');
+  clear.className = 'date-clear';
+  clear.textContent = '×';
+  clear.setAttribute('aria-label', `${input.getAttribute('aria-label')}: Datum entfernen`);
+  clear.addEventListener('click', () => {
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+  });
+  input.closest('.date-tile')!.append(clear);
+}
+
+// Der Pfeil bei Firma klappt die Vorschläge auf (wo der Browser das kann)
+for (const input of [companyInput]) {
+  input.closest('.tile')!.querySelector('.tile-chevron')!.addEventListener('click', (e) => {
+    e.preventDefault();
+    input.focus();
+    try {
+      input.showPicker();
+    } catch {
+      // dann bleibt es beim Fokus, die Vorschläge erscheinen beim Tippen
+    }
   });
 }
 
@@ -1727,7 +1746,7 @@ function createListSection(group: ListGroup, count: number) {
     symbol.className = 'sw';
     section.appendChild(symbol);
   }
-  section.append(`${group === 'done' ? 'Erledigt' : IMPORTANCE_TEXT[group]} (${count})`);
+  section.append(`${group === 'done' ? 'Erledigt' : IMPORTANCE_PLURAL[group]} (${count})`);
   return section;
 }
 

@@ -19,9 +19,10 @@
   --warn: #8a3b00;
 
   /* Wichtigkeit und Erledigt */
-  --wichtig: #d93030;
-  --relevant: #f5c400;
+  --mangel: #d93030;
   --hinweis: #1a7f45;
+  --intern: #1e8494;
+  --attention: #f5c400; /* gelber Punkt: Backup empfohlen */
   --done: #5f6873;
 
   /* Glas: nur für die Bedienung. Plan, Fotos und Karten bleiben fest und gut lesbar. */
@@ -109,8 +110,7 @@
 }
 
 [data-theme='sonne'] .btn,
-[data-theme='sonne'] .seg-btn,
-[data-theme='sonne'] .chip {
+[data-theme='sonne'] .seg-btn {
   font-weight: 650;
 }
 
@@ -142,19 +142,11 @@
 }
 
 /* Farbe und Form der Wichtigkeit: Die Form hilft bei Farbschwäche und in der Sonne.
-   Schriftfarbe passend, denn auf Gelb ist nur dunkle Schrift lesbar. */
-.wichtig {
-  --level: var(--wichtig);
+   Mangel: Kreis, Hinweis: Raute, Intern: Quadrat. */
+.mangel {
+  --level: var(--mangel);
   --on-level: #fff;
   --shape: 50%;
-  --turn: 0deg;
-  --fit: 1;
-}
-
-.relevant {
-  --level: var(--relevant);
-  --on-level: #0b1f33;
-  --shape: 26%;
   --turn: 0deg;
   --fit: 1;
 }
@@ -165,6 +157,14 @@
   --shape: 16%;
   --turn: 45deg;
   --fit: 0.86;
+}
+
+.intern {
+  --level: var(--intern);
+  --on-level: #fff;
+  --shape: 26%;
+  --turn: 0deg;
+  --fit: 1;
 }
 
 * {
@@ -314,7 +314,6 @@ body {
 @media (hover: hover) {
   .btn:hover:not(:disabled, .primary, .active),
   .menu-item:hover,
-  .chip:hover,
   .list-item:hover,
   .text-block-pick:hover {
     background: var(--well);
@@ -554,7 +553,7 @@ select:focus-visible {
 }
 
 #app-info.warn::before {
-  background: var(--relevant);
+  background: var(--attention);
   box-shadow: 0 0 0 1px #0b1f33;
 }
 
@@ -1158,7 +1157,7 @@ a.menu-item {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--relevant);
+  background: var(--attention);
   box-shadow: 0 0 0 1.5px #0b1f33;
 }
 
@@ -1517,14 +1516,6 @@ a.menu-item {
   margin-bottom: 0;
 }
 
-.lab {
-  display: block;
-  margin-left: 4px;
-  font-size: 13px;
-  font-weight: 550;
-  color: var(--muted);
-}
-
 /* 16px Schrift: darunter zoomt das iPad beim Antippen automatisch in das Feld */
 .field input,
 .field textarea,
@@ -1572,7 +1563,7 @@ textarea.in {
 .field textarea:focus,
 .in:focus,
 .title-input:focus,
-.row input:focus {
+.tile:focus-within {
   outline: 2px solid var(--accent);
   outline-offset: 0;
 }
@@ -1582,66 +1573,6 @@ textarea.in {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
-}
-
-.notes-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 4px;
-}
-
-/* Gruppe aus Zeilen: Beschriftung links, Wert rechts */
-.rows {
-  border-radius: var(--radius);
-  background: var(--well);
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 50px;
-  padding: 0 14px;
-  font-size: 15px;
-  color: var(--muted);
-}
-
-.row + .row {
-  border-top: 1px solid var(--border);
-}
-
-.row input {
-  flex: 1;
-  min-width: 0;
-  min-height: 48px;
-  border: 0;
-  border-radius: 8px;
-  background: none;
-  color: var(--text);
-  font: inherit;
-  font-size: 16px;
-  font-weight: 500;
-  text-align: right;
-  -webkit-user-select: text;
-  user-select: text;
-}
-
-/* Wert, der sich nicht eintippen lässt, z. B. "Erfasst von" */
-.row-value {
-  flex: 1;
-  min-width: 0;
-  color: var(--text);
-  font-size: 16px;
-  font-weight: 500;
-  text-align: right;
-  overflow-wrap: anywhere;
-}
-
-/* Abgelaufene Frist */
-.row input.overdue {
-  color: var(--danger);
-  font-weight: 650;
 }
 
 /* Zur Wahl stehende Werte: Wichtigkeit, Filter, Darstellung */
@@ -1696,36 +1627,6 @@ textarea.in {
   font-size: 14px;
 }
 
-/* Vorschläge, z. B. Textbausteine in der Schnellerfassung: eine Zeile zum Wischen,
-   bis an den Rand des Blatts, damit man sieht, dass es weitergeht */
-.chips {
-  display: flex;
-  gap: 6px;
-  margin: 0 -16px;
-  padding: 0 16px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  touch-action: pan-x;
-}
-
-.chips:empty {
-  display: none;
-}
-
-.chip {
-  flex: none;
-  min-height: 44px;
-  padding: 0 13px;
-  border: 0;
-  border-radius: 22px;
-  background: var(--well);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
 .capture-actions {
   flex: none;
   display: flex;
@@ -1743,13 +1644,204 @@ textarea.in {
 }
 
 .capture-actions .btn {
-  flex: 1;
+  flex: 1 1 auto;
+  padding: 0 12px;
+  font-size: 14px;
+  white-space: nowrap;
   min-height: 52px;
   border-radius: 18px;
 }
 
 .capture-actions .primary {
-  flex: 1.3;
+  padding: 0 14px;
+}
+
+/* Umrandeter Knopf, z. B. "Schließen" in der Schnellerfassung */
+.btn.outline {
+  box-shadow: inset 0 0 0 1.5px var(--border);
+}
+
+/* Leicht in der Markenfarbe getönt, z. B. "Aus Galerie" */
+.btn.tinted {
+  background: color-mix(in srgb, var(--brand) 13%, transparent);
+  color: var(--brand);
+}
+
+[data-theme='dunkel'] .btn.tinted {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+}
+
+/* ---------- Kacheln: Textbaustein, Gewerk, Firma, Termine ---------- */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 60px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--well);
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tile > .i {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+}
+
+.tile-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tile-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.tile-value,
+.tile-input {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Eingabefeld in der Kachel: sieht aus wie der Wert, 16px gegen das Zoomen am iPad */
+.tile-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font-family: inherit;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.tile-input::placeholder {
+  color: var(--text);
+  opacity: 1;
+}
+
+.tile-input::-webkit-calendar-picker-indicator {
+  display: none !important; /* eigener Pfeil statt dem des Browsers */
+}
+
+.tile > .tile-chevron {
+  width: 18px;
+  height: 18px;
+}
+
+/* Textbaustein: Symbol auf eigener Fläche, damit die Kachel als Knopf erkennbar ist */
+.tile-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.block-tile .tile-value {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* Datum: Das Datumsfeld liegt unsichtbar über der ganzen Kachel und öffnet die Auswahl des Geräts */
+.date-tile input[type='date'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.date-tile.empty .tile-value {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.date-tile.overdue .tile-value,
+.date-tile.overdue > .i {
+  color: var(--danger);
+}
+
+/* Datum entfernen: oben rechts in der Ecke, über dem Datumsfeld. So bleibt dem Datum die volle Breite. */
+.date-clear {
+  position: absolute;
+  z-index: 1;
+  top: 2px;
+  right: 2px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.date-tile.empty .date-clear {
+  display: none;
+}
+
+.created-by {
+  margin: -6px 4px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.created-by span {
+  color: var(--text);
+  font-weight: 550;
+}
+
+/* Zwei Knöpfe nebeneinander: Foto aufnehmen und Aus Galerie */
+.photo-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.photo-buttons .btn {
+  min-height: 56px;
+  gap: 6px;
+  padding: 0 6px;
+  font-size: 14px;
+  white-space: nowrap;
+  border-radius: 16px;
 }
 
 /* Erledigt-Schalter */
@@ -1826,34 +1918,6 @@ textarea.in {
 
 .photos:empty {
   display: none;
-}
-
-/* Die Miniaturen liegen im selben Raster wie die beiden Knöpfe */
-#photo-grid {
-  display: contents;
-}
-
-.add-photo {
-  aspect-ratio: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0;
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--well);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 550;
-  cursor: pointer;
-}
-
-.add-photo.main {
-  background: var(--brand);
-  color: var(--on-brand);
 }
 
 .thumb {
@@ -2145,14 +2209,14 @@ textarea.in {
   font-size: 22px;
 }
 
-#text-block-message,
+#trades-message,
 #profile-message,
 #project-dialog-message {
   margin: 8px 0 0;
   color: var(--danger);
 }
 
-#text-block-message:empty,
+#trades-message:empty,
 #profile-message:empty,
 #project-dialog-message:empty {
   display: none;
@@ -2220,7 +2284,8 @@ textarea.in {
   font-size: 20px;
 }
 
-#inspection-edit-view .dialog-buttons .spacer {
+#inspection-edit-view .dialog-buttons .spacer,
+#trades-dialog .dialog-buttons .spacer {
   flex: 1;
 }
 
@@ -2264,6 +2329,7 @@ textarea.in {
 #report-dialog,
 #inspections-dialog,
 #text-blocks-dialog,
+#trades-dialog,
 #profile-dialog,
 #project-dialog,
 #camera-dialog {
@@ -2638,4 +2704,133 @@ textarea.in {
 /* Auf der Startseite gibt es unten keine Leiste */
 #home-view:not([hidden]) ~ #status {
   bottom: calc(20px + env(safe-area-inset-bottom));
+}
+
+/* ---------- Auswahlfenster mit Kacheln, z. B. "Gewerk wählen" (trades-dialog.ts) ---------- */
+.dialog-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.dialog-head h2 {
+  margin: 0;
+}
+
+.choice-search {
+  background: var(--well);
+  box-shadow: none;
+}
+
+#trades-dialog .dialog-box {
+  display: flex;
+  flex-direction: column;
+  width: min(620px, 100%);
+  height: min(640px, 100%);
+}
+
+#trades-dialog .dialog-hint {
+  margin: 10px 4px 0;
+}
+
+/* Kacheln in Spalten, je nach Breite zwei bis vier. Nur die Kacheln scrollen. */
+.choice-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-auto-rows: min-content;
+  align-content: start;
+  gap: 8px;
+  margin: 14px -4px 0;
+  padding: 4px;
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+
+.choice-grid .list-empty {
+  grid-column: 1 / -1;
+}
+
+.choice {
+  position: relative;
+  min-height: 60px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--well);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    transform 0.18s;
+}
+
+.choice:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) {
+  .choice:hover:not(.selected) {
+    background: var(--border);
+  }
+}
+
+.choice.selected {
+  padding-right: 34px;
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.choice.selected::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  background: var(--check) center / contain no-repeat;
+  transform: translateY(-50%);
+}
+
+/* Neues Gewerk: gestrichelt, damit es sich von der Liste abhebt */
+.choice.add {
+  background: none;
+  box-shadow: inset 0 0 0 2px var(--brand);
+  color: var(--brand);
+}
+
+[data-theme='dunkel'] .choice.add {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  color: var(--accent);
+}
+
+/* Bearbeiten: rotes Minus oben rechts, Antippen löscht nach Rückfrage */
+.choice.removable {
+  padding-right: 38px;
+}
+
+.choice.removable::after {
+  content: '−';
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 23px;
+  text-align: center;
+  transform: translateY(-50%);
 }

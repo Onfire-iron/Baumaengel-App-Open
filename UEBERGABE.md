@@ -188,7 +188,7 @@ src/
   inspections.ts      Begehungen: Regeln für die Daten (Sortierung, Termine für die Kopfzeile, Backup prüfen)
   inspections-dialog.ts  Fenster "Begehungen": Liste, eine Begehung mit Teilnehmern bearbeiten
   db.ts               Datenbank: Tabellen, Versionen, alle Lese- und Schreibzugriffe
-  defects.ts          Wichtigkeit, Erledigt, Termine, Sortierung, Gewerke, Standard-Textbausteine
+  defects.ts          Stufen (Mangel/Hinweis/Intern), Erledigt, Termine, Sortierung, Gewerke, Standard-Textbausteine
   backup.ts           ZIP-Export und -Import, Backup-Erinnerung
   report.ts           PDF-Bericht erzeugen (wird erst bei Bedarf geladen)
   report-dialog.ts    Fenster "Bericht erstellen"
@@ -200,7 +200,8 @@ src/
   maps.ts             Projektadresse als Google-Maps-Link (Menüs und Deckblatt des Berichts)
   divisions.ts        Bereiche (Büros) mit Logos, gewählter Bereich
   native.ts           nur in der Android-App: Kamera mit Galerie-Album, Speichern in Documents, Links
-  text-blocks.ts      Fenster "Textbausteine"
+  text-blocks.ts      Fenster "Textbausteine" (vorerst Platzhalter)
+  trades-dialog.ts    Fenster "Gewerk wählen": Gewerke-Liste mit Suche, Ergänzen, Löschen
   search.ts           gemeinsame Suchregeln für Projektsuche und Mängelliste
   menu.ts, share.ts, status.ts, theme.ts   Menüs, Datei herausgeben, Meldungen, Darstellung
   style.css           alle Styles
@@ -222,16 +223,17 @@ src/
 
 ## Regeln für gespeicherte Daten
 
-**Datenbank (`db.ts`):** Der Name ist `baumaengel`, aktuell gilt Version 8.
+**Datenbank (`db.ts`):** Der Name ist `baumaengel`, aktuell gilt Version 9.
 
 - Bestehende `db.version(...)`-Blöcke nie ändern. Änderungen kommen als neue Version mit `.upgrade(...)`.
 - Geänderte Felder auch in `types.ts` nachziehen.
 - PDFs und Fotos liegen als `ArrayBuffer`, weil Safari mit Blobs in IndexedDB Probleme hatte.
 
-**Backup (`backup.ts`):** Ein ZIP mit `projekt.json`, `plaene/`, `fotos/` und `bericht/`, aktuell Format-Version 7.
+**Backup (`backup.ts`):** Ein ZIP mit `projekt.json`, `plaene/`, `fotos/` und `bericht/`, aktuell Format-Version 8.
 
 - Alte Backups müssen importierbar bleiben: ohne Nummern, mit `status` statt Wichtigkeit, Fotos nur
-  als Dateiname, ohne `report`, `textBlocks` und `createdBy`.
+  als Dateiname, ohne `report`, `textBlocks`, `trades` und `createdBy`, mit den alten Stufen
+  `wichtig`/`relevant` (werden in `readMarking` zu Mangel/Intern).
 - Ein Backup einer neueren Version lässt sich in einer älteren App nicht einlesen (z. B. 7 in einer App mit 6). Alle Geräte sollten
   deshalb dieselbe App-Version haben (sie aktualisieren sich von selbst, sobald sie die App öffnen).
 - Bei Änderungen am Format `VERSION` erhöhen. `BackupFile` beschreibt, was geschrieben wird,
@@ -322,6 +324,22 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
   findet den Mangel mit genau dieser Nummer und Überschriften, in denen die Zahl vorkommt. Die Suche gilt
   nur für die Liste, die Filter (Wichtigkeit, Erledigte) gelten für Liste und Plan. Blendet ein Filter
   Treffer aus, sagt die Liste das. Beide Suchen nutzen `search.ts` (Groß/klein, Umlaute und ß egal).
+- **Stufen (seit 4.24):** Mangel (rot, Kreis), Hinweis (grün, Raute), Intern (petrol, Quadrat), in dieser
+  Reihenfolge. Vorher Wichtig/Relevant/Hinweis: DB-Version 9 und `readMarking` setzen Wichtig auf Mangel
+  und Relevant auf Intern um (gleiche Form). Im Code heißt das Feld weiter `importance`, im Bericht
+  die Spalte "Art". Interne Punkte stehen derzeit wie alle anderen im Bericht.
+- **Gewerke-Liste (seit 4.24):** Die Kachel "Gewerk" öffnet das Fenster "Gewerk wählen" (`trades-dialog.ts`)
+  mit Kacheln aus der Tabelle `trades` (für alle Projekte, anfangs `TRADES` aus `defects.ts`). Tippen
+  wählt, Suchen filtert, ein neuer Name lässt sich direkt hinzufügen, "Bearbeiten" löscht Einträge
+  (Mängel behalten ihr Gewerk). Die Liste kommt ins Backup und wird beim Import ergänzt. Erster Test für
+  die geplanten Auswahlfenster für Firmen und Namen.
+- **Punkt-Menü (Schnellerfassung und Bearbeitungsfenster):** Seit 4.24 im neuen Aufbau: Überschrift oben,
+  Foto aufnehmen und Aus Galerie nebeneinander, darunter die Miniaturen; Textbaustein als Kachel; Gewerk, Firma,
+  Festgestellt und Frist als Kacheln im Raster (Firma noch als Eingabefeld mit Vorschlägen). Die Datumskacheln zeigen das Datum als Text, darüber liegt
+  unsichtbar das Datumsfeld (`.date-tile`), das am Finger die Auswahl des Geräts öffnet und am Rechner per
+  `showPicker()`. "×" oben rechts leert das Datum. Die Kachel "Textbaustein" öffnet vorerst nur einen
+  Platzhalter; die Bausteine nach Kategorien kommen später. Die alten Bausteine bleiben in Datenbank und
+  Backup, sind aber derzeit nicht auswählbar.
 - **Sperre der Punkte:** Gesetzte Punkte lassen sich nicht einfach ziehen (sonst verrutschen sie bei
   einem Vertipper auf der Baustelle). Zum Verschieben im Bearbeitungsfenster "Verschieben" einschalten.
   Die Freigabe gilt nur für diesen einen Punkt und endet, sobald er abgewählt wird. Ein gerade neu

@@ -8,17 +8,32 @@
 
 import type { Defect, Importance, IsoDate } from './types.ts';
 
-export const IMPORTANCE: Importance[] = ['wichtig', 'relevant', 'hinweis'];
+export const IMPORTANCE: Importance[] = ['mangel', 'hinweis', 'intern'];
 
 export const IMPORTANCE_TEXT: Record<Importance, string> = {
-  wichtig: 'Wichtig',
-  relevant: 'Relevant',
+  mangel: 'Mangel',
   hinweis: 'Hinweis',
+  intern: 'Intern',
 };
 
-export const DEFAULT_IMPORTANCE: Importance = 'wichtig';
+// Mehrzahl, z. B. "3 Mängel" auf der Startseite und als Abschnitt der Mängelliste
+export const IMPORTANCE_PLURAL: Record<Importance, string> = {
+  mangel: 'Mängel',
+  hinweis: 'Hinweise',
+  intern: 'Intern',
+};
 
-// Vorschläge für das Feld "Gewerk", dazu kommen die im Projekt schon benutzten
+export const DEFAULT_IMPORTANCE: Importance = 'mangel';
+
+// Bis Etappe 4.23 gab es Wichtig, Relevant und Hinweis. Wichtig wurde zu Mangel, Relevant zu Intern
+// (gleiche Form: Quadrat), Hinweis blieb. Gilt für die Datenbank (db.ts) und alte Backups.
+const OLD_IMPORTANCE = new Map<unknown, Importance>([
+  ['wichtig', 'mangel'],
+  ['relevant', 'intern'],
+  ['hinweis', 'hinweis'],
+]);
+
+// Erste Einträge der Gewerke-Liste. Sie lassen sich in der App ergänzen und löschen.
 export const TRADES = [
   'Rohbau',
   'Abdichtung',
@@ -102,7 +117,8 @@ export function readDetails(defect: {
 }
 
 // Liest die Angaben auch aus alten Daten mit "status" (offen/erledigt).
-// Alte Daten kannten keine Wichtigkeit, darum gelten sie als "Wichtig".
+// Alte Daten kannten keine Wichtigkeit, darum gelten sie als "Mangel". Die alten Stufen
+// (wichtig, relevant) werden umgesetzt, siehe OLD_IMPORTANCE.
 export function readMarking(defect: {
   importance?: unknown;
   done?: unknown;
@@ -111,7 +127,7 @@ export function readMarking(defect: {
   return {
     importance: IMPORTANCE.includes(defect.importance as Importance)
       ? (defect.importance as Importance)
-      : DEFAULT_IMPORTANCE,
+      : (OLD_IMPORTANCE.get(defect.importance) ?? DEFAULT_IMPORTANCE),
     done: defect.done === true || defect.status === 'erledigt',
   };
 }

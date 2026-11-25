@@ -117,9 +117,9 @@ const COLOR = {
   muted: rgb(0.31, 0.357, 0.412),
   line: rgb(0.478, 0.447, 0.91), // #7A72E8
   zebra: rgb(0.945, 0.957, 0.969),
-  wichtig: rgb(0.85, 0.19, 0.19),
-  relevant: rgb(0.96, 0.77, 0),
+  mangel: rgb(0.85, 0.19, 0.19),
   hinweis: rgb(0.1, 0.5, 0.27),
+  intern: rgb(0.118, 0.518, 0.58), // #1E8494
   erledigt: rgb(0.373, 0.408, 0.451), // #5F6873
   white: rgb(1, 1, 1),
 };
@@ -127,8 +127,6 @@ const COLOR = {
 const LOGO_BOX = { width: 170, height: 70 }; // Logo auf dem Deckblatt und in der Kopfzeile
 const HEADER_LINE_HEIGHT = 1.3; // Zeilenabstand in der Kopfzeile, mal Schriftgröße
 
-// Schriftfarbe auf der Farbe der Wichtigkeit: Auf Gelb ist nur dunkle Schrift lesbar
-const onLevel = (importance: Importance) => (importance === 'relevant' ? COLOR.text : COLOR.white);
 
 // Erzeugt den Bericht und liefert ihn als Blob.
 // onProgress(erledigt, gesamt, text) meldet den Fortschritt, signal bricht ab.
@@ -395,7 +393,7 @@ function drawCheck(page: PDFPage, x: number, y: number, size: number, color: Col
   }
 }
 
-// Form wie in der App: Wichtig als Kreis, Relevant als Quadrat, Hinweis als Raute.
+// Form wie in der App: Mangel als Kreis, Hinweis als Raute, Intern als Quadrat.
 // So bleibt die Wichtigkeit auch im Schwarz-Weiß-Druck und bei Farbschwäche erkennbar.
 function drawLevelShape(
   page: PDFPage,
@@ -406,7 +404,7 @@ function drawLevelShape(
   border: { borderColor?: Color; borderWidth?: number } = {}
 ) {
   const color = COLOR[importance];
-  if (importance === 'relevant') {
+  if (importance === 'intern') {
     const side = radius * 1.8;
     page.drawRectangle({ x: x - side / 2, y: y - side / 2, width: side, height: side, color, ...border });
   } else if (importance === 'hinweis') {
@@ -460,7 +458,7 @@ function drawPin(
     y: y - size * 0.36,
     font: r.bold,
     size,
-    color: onLevel(pin.importance),
+    color: COLOR.white,
   });
 }
 
@@ -760,7 +758,7 @@ function drawLegend(r: ReportContext, plans: Plan[], pins: Defect[]) {
   drawText(
     r,
     page,
-    `Erledigt: ${pins.length - openPins.length} (Haken statt Nummer, Wichtigkeit bleibt angegeben)`,
+    `Erledigt: ${pins.length - openPins.length} (Haken statt Nummer, die Art bleibt angegeben)`,
     MARGIN + 26,
     y,
     { size: 12 }
@@ -771,7 +769,7 @@ function drawLegend(r: ReportContext, plans: Plan[], pins: Defect[]) {
     drawText(r, page, `Davon überfällig: ${overdueCount} (Frist vor dem Berichtsdatum abgelaufen)`, MARGIN, y, {
       font: r.bold,
       size: 12,
-      color: COLOR.wichtig,
+      color: COLOR.mangel,
     });
     y -= 26;
   }
@@ -790,7 +788,7 @@ function drawLegend(r: ReportContext, plans: Plan[], pins: Defect[]) {
     { title: 'Plan', x: MARGIN + 204, width: 84 },
     { title: 'Gewerk / Firma', x: MARGIN + 294, width: 88 },
     { title: 'Frist', x: MARGIN + 386, width: 56 },
-    { title: 'Wichtigkeit', x: MARGIN + 448, width: 60 },
+    { title: 'Art', x: MARGIN + 448, width: 60 },
   ];
   const lineHeight = 13;
 
@@ -859,9 +857,9 @@ function drawLegend(r: ReportContext, plans: Plan[], pins: Defect[]) {
     drawText(r, page, formatDate(pin.dueDate), columns[4].x, y, {
       font: overdue ? r.bold : r.regular,
       size: 10,
-      color: overdue ? COLOR.wichtig : pin.done ? COLOR.muted : COLOR.text,
+      color: overdue ? COLOR.mangel : pin.done ? COLOR.muted : COLOR.text,
     });
-    // Punkt statt farbiger Schrift: Gelbe Schrift wäre auf Weiß nicht lesbar
+    // Form und Farbe wie auf dem Plan, die Schrift bleibt dunkel
     drawLevelShape(page, pin.importance, columns[5].x + 4, y + 3.5, 4);
     drawText(r, page, IMPORTANCE_TEXT[pin.importance], columns[5].x + 12, y, { font: r.bold, size: 10 });
     y -= height;
@@ -882,7 +880,7 @@ function drawDoneSection(r: ReportContext, count: number) {
   const text =
     (count === 1 ? 'Der folgende Mangel ist' : 'Die folgenden Mängel sind') +
     ' als erledigt markiert und nur noch zur Dokumentation aufgeführt. ' +
-    'Nummer und ursprüngliche Wichtigkeit bleiben angegeben.';
+    'Nummer und Art (Mangel, Hinweis, Intern) bleiben angegeben.';
   let y = r.top - 72;
   for (const line of wrapText(r, text, r.regular, 12, CONTENT_W)) {
     drawText(r, page, line, MARGIN, y, { size: 12 });
@@ -1000,7 +998,7 @@ async function drawDefect(r: ReportContext, pin: Defect, pins: Defect[], plans: 
     PAGE_W - MARGIN,
     y,
     COLOR[pin.importance],
-    onLevel(pin.importance)
+    COLOR.white
   );
   if (pin.done) drawBadge(r, page, 'Erledigt', badgeLeft - 6, y, COLOR.erledigt, COLOR.white, true);
   y -= 22;
@@ -1036,7 +1034,7 @@ async function drawDefect(r: ReportContext, pin: Defect, pins: Defect[], plans: 
   if (pin.dueDate) {
     const overdue = isOverdue(pin, r.reportDate);
     const text = `Frist: ${formatDate(pin.dueDate)}${overdue ? ' (überfällig)' : ''}`;
-    drawFlowing(text, overdue ? r.bold : r.regular, 10, 14, overdue ? COLOR.wichtig : COLOR.muted);
+    drawFlowing(text, overdue ? r.bold : r.regular, 10, 14, overdue ? COLOR.mangel : COLOR.muted);
   }
   y -= 6;
   if (pin.notes) drawFlowing(pin.notes, r.regular, 11, 15, COLOR.text);

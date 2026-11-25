@@ -243,9 +243,9 @@
             <div id="plan-filter">
               <span class="sep"></span>
               <button class="btn filter" data-level="" aria-label="Alle Mängel">Alle</button>
-              <button class="btn filter wichtig" data-level="wichtig" aria-label="Nur Wichtig"><span class="sw"></span><span class="count"></span></button>
-              <button class="btn filter relevant" data-level="relevant" aria-label="Nur Relevant"><span class="sw"></span><span class="count"></span></button>
-              <button class="btn filter hinweis" data-level="hinweis" aria-label="Nur Hinweis"><span class="sw"></span><span class="count"></span></button>
+              <button class="btn filter mangel" data-level="mangel" aria-label="Nur Mängel"><span class="sw"></span><span class="count"></span></button>
+              <button class="btn filter hinweis" data-level="hinweis" aria-label="Nur Hinweise"><span class="sw"></span><span class="count"></span></button>
+              <button class="btn filter intern" data-level="intern" aria-label="Nur Interne"><span class="sw"></span><span class="count"></span></button>
               <button id="filter-hide-done" class="btn filter icon" aria-label="Erledigte ausblenden">
                 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7" /></svg>
               </button>
@@ -276,28 +276,33 @@
           <div class="panel-head">
             <span id="capture-badge" class="badge"></span>
             <h2>Neuer Mangel</h2>
-            <button id="capture-close" class="btn icon" aria-label="Schließen">
-              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
-            </button>
           </div>
           <div class="sheet-body">
-            <button id="capture-camera-btn" class="btn primary wide big">
-              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4zM12 16.500a3.500 3.500 0 1 0 0-7 3.500 3.500 0 0 0 0 7Z" /></svg>
-              Foto aufnehmen
-            </button>
+            <input id="capture-title" class="title-input" type="text" autocomplete="off" aria-label="Überschrift" placeholder="Überschrift" />
+            <div class="photo-buttons">
+              <button id="capture-camera-btn" class="btn primary">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4zM12 16.500a3.500 3.500 0 1 0 0-7 3.500 3.500 0 0 0 0 7Z" /></svg>
+                Foto aufnehmen
+              </button>
+              <button id="capture-gallery-btn" class="btn tinted">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 16l5-5 4 4 2.500-2.500L20 17M15.500 9.500h.01" /></svg>
+                Aus Galerie
+              </button>
+            </div>
             <div id="capture-photos" class="photos"></div>
-            <label class="field">
-              Überschrift
-              <input id="capture-title" type="text" autocomplete="off" placeholder="Tippen oder Baustein wählen" />
-            </label>
-            <div id="capture-blocks" class="chips"></div>
+            <button id="capture-blocks-btn" class="tile block-tile">
+              <span class="tile-icon"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8.500 8.500h7M8.500 12h7M8.500 15.500h4" /></svg></span>
+              <span class="tile-text"><span class="tile-label">Textbaustein</span><span class="tile-value">Aus Vorlage wählen</span></span>
+              <svg class="i tile-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+            </button>
             <div class="segmented importance-buttons">
-              <button class="seg-btn wichtig" data-importance="wichtig" aria-pressed="false"><span class="sw"></span>Wichtig</button>
-              <button class="seg-btn relevant" data-importance="relevant" aria-pressed="false"><span class="sw"></span>Relevant</button>
+              <button class="seg-btn mangel" data-importance="mangel" aria-pressed="false"><span class="sw"></span>Mangel</button>
               <button class="seg-btn hinweis" data-importance="hinweis" aria-pressed="false"><span class="sw"></span>Hinweis</button>
+              <button class="seg-btn intern" data-importance="intern" aria-pressed="false"><span class="sw"></span>Intern</button>
             </div>
           </div>
           <div class="capture-actions">
+            <button id="capture-close" class="btn outline">Schließen</button>
             <button id="capture-details" class="btn soft">Alle Details</button>
             <button id="capture-next" class="btn primary">Nächster Punkt</button>
           </div>
@@ -317,69 +322,76 @@
           <div id="panel-body" class="sheet-body">
             <input id="pin-title" class="title-input" type="text" autocomplete="off" aria-label="Überschrift" placeholder="Überschrift" />
 
-            <div class="photos">
-              <button id="photo-camera-btn" class="add-photo main">
+            <div class="photo-buttons">
+              <button id="photo-camera-btn" class="btn primary">
                 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4zM12 16.500a3.500 3.500 0 1 0 0-7 3.500 3.500 0 0 0 0 7Z" /></svg>
-                Aufnehmen
+                Foto aufnehmen
               </button>
-              <div id="photo-grid"></div>
-              <button id="photo-gallery-btn" class="add-photo">
+              <button id="photo-gallery-btn" class="btn tinted">
                 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 16l5-5 4 4 2.500-2.500L20 17M15.500 9.500h.01" /></svg>
-                Auswählen
+                Aus Galerie
               </button>
             </div>
+            <div id="photo-grid" class="photos"></div>
             <input id="photo-camera" type="file" accept="image/*" capture="environment" hidden />
             <input id="photo-gallery" type="file" accept="image/*" multiple hidden />
 
             <div class="segmented importance-buttons">
-              <button class="seg-btn wichtig" data-importance="wichtig" aria-pressed="false"><span class="sw"></span>Wichtig</button>
-              <button class="seg-btn relevant" data-importance="relevant" aria-pressed="false"><span class="sw"></span>Relevant</button>
+              <button class="seg-btn mangel" data-importance="mangel" aria-pressed="false"><span class="sw"></span>Mangel</button>
               <button class="seg-btn hinweis" data-importance="hinweis" aria-pressed="false"><span class="sw"></span>Hinweis</button>
+              <button class="seg-btn intern" data-importance="intern" aria-pressed="false"><span class="sw"></span>Intern</button>
             </div>
 
-            <div>
-              <div class="notes-head">
-                <label class="lab" for="pin-notes">Notizen</label>
-                <button id="text-blocks-btn" class="btn link">Textbaustein</button>
-              </div>
-              <textarea id="pin-notes" class="in" rows="3"></textarea>
-            </div>
+            <button id="text-blocks-btn" class="tile block-tile">
+              <span class="tile-icon"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5zM8.500 8.500h7M8.500 12h7M8.500 15.500h4" /></svg></span>
+              <span class="tile-text"><span class="tile-label">Textbaustein</span><span class="tile-value">Aus Vorlage wählen</span></span>
+              <svg class="i tile-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+            </button>
 
-            <div class="rows">
-              <label class="row">
-                Gewerk
-                <input id="pin-trade" type="text" list="trade-options" autocomplete="off" />
-                <datalist id="trade-options"></datalist>
-              </label>
-              <label class="row">
-                Firma
-                <input id="pin-company" type="text" list="company-options" autocomplete="off" />
+            <textarea id="pin-notes" class="in" rows="3" aria-label="Notizen" placeholder="Notizen"></textarea>
+
+            <!-- Kacheln: Gewerk aus der Liste (trades-dialog.ts), Firma zum Tippen oder Wählen, Termine über die Datumsauswahl des Geräts -->
+            <div class="tiles">
+              <button id="pin-trade-btn" class="tile">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.700 6.300a1 1 0 0 0 0 1.400l1.600 1.600a1 1 0 0 0 1.400 0l3.770-3.770a6 6 0 0 1-7.940 7.940l-6.910 6.910a2.120 2.120 0 0 1-3-3l6.910-6.910a6 6 0 0 1 7.940-7.940z" /></svg>
+                <span class="tile-text">
+                  <span class="tile-label">Gewerk</span>
+                  <span id="pin-trade" class="tile-value"></span>
+                </span>
+                <svg class="i tile-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              </button>
+              <label class="tile">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V9h6v11M10 20V4h10v16M3 20h18M13.500 8h3M13.500 12h3M13.500 16h3" /></svg>
+                <span class="tile-text">
+                  <span class="tile-label">Firma</span>
+                  <input id="pin-company" class="tile-input" type="text" list="company-options" autocomplete="off" placeholder="Wählen" />
+                </span>
+                <svg class="i tile-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                 <datalist id="company-options"></datalist>
               </label>
-              <div id="created-by-row" class="row" hidden>
-                Erfasst von
-                <span id="pin-created-by" class="row-value"></span>
+              <div class="tile date-tile">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" /></svg>
+                <span class="tile-text"><span class="tile-label">Festgestellt</span><span class="tile-value"></span></span>
+                <input id="pin-found" type="date" aria-label="Festgestellt am" />
               </div>
-              <label class="row">
-                Festgestellt
-                <input id="pin-found" type="date" />
-              </label>
-              <label class="row">
-                Frist
-                <input id="pin-due" type="date" />
-              </label>
+              <div class="tile date-tile">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM12 9v4l2.500 2M10 2h4" /></svg>
+                <span class="tile-text"><span class="tile-label">Frist</span><span class="tile-value"></span></span>
+                <input id="pin-due" type="date" aria-label="Frist" />
+              </div>
             </div>
+
+            <p id="created-by-row" class="created-by" hidden>Erfasst von <span id="pin-created-by"></span></p>
 
             <button id="done-btn" class="switch-row" aria-pressed="false">
               Erledigt
               <span class="switch"></span>
             </button>
 
-            <div id="done-date-field" class="rows" hidden>
-              <label class="row">
-                Erledigt am
-                <input id="pin-done-at" type="date" />
-              </label>
+            <div id="done-date-field" class="tile date-tile" hidden>
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4M9 15l2 2 4-4" /></svg>
+              <span class="tile-text"><span class="tile-label">Erledigt am</span><span class="tile-value"></span></span>
+              <input id="pin-done-at" type="date" aria-label="Erledigt am" />
             </div>
 
             <!-- Punkte sind gegen versehentliches Verschieben gesperrt, siehe "Sperre" in main.ts -->
@@ -439,27 +451,39 @@
       </div>
     </div>
 
-    <!-- Fenster "Textbausteine" -->
+    <!-- Fenster "Textbausteine": Platzhalter, die Bausteine nach Kategorien folgen (text-blocks.ts) -->
     <div id="text-blocks-dialog" hidden>
       <div class="dialog-box glass-thick">
         <h2>Textbausteine</h2>
-        <p class="dialog-hint">
-          Antippen fügt den Text ein: in die Überschrift, solange sie leer ist, sonst in die Notizen.
-        </p>
-        <label class="field">
-          Suchen oder neu eingeben
-          <input id="text-block-input" type="text" autocomplete="off" />
-        </label>
-        <button id="text-block-add" class="btn soft wide" disabled>Als neuen Baustein speichern</button>
-        <p id="text-block-message" role="alert"></p>
-        <div id="text-block-list"></div>
+        <p class="dialog-hint">Platzhalter Textbausteine</p>
         <div class="dialog-buttons">
           <button id="text-blocks-close" class="btn soft">Schließen</button>
         </div>
       </div>
     </div>
 
-    <!-- Fenster "Neues Projekt" und "Projekt bearbeiten" -->
+    <!-- Fenster "Gewerk wählen", siehe trades-dialog.ts -->
+    <div id="trades-dialog" hidden>
+      <div class="dialog-box glass-thick" role="dialog" aria-labelledby="trades-title">
+        <div class="dialog-head">
+          <h2 id="trades-title">Gewerk wählen</h2>
+          <button id="trades-edit" class="btn link" aria-pressed="false">Bearbeiten</button>
+        </div>
+        <div class="search-field choice-search">
+          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.500 17a6.500 6.500 0 1 0 0-13 6.500 6.500 0 0 0 0 13ZM15.300 15.300 20 20" /></svg>
+          <input id="trades-search" type="search" autocomplete="off" enterkeyhint="done" maxlength="60" placeholder="Suchen oder neu eingeben" aria-label="Gewerk suchen oder neu eingeben" />
+        </div>
+        <p id="trades-hint" class="dialog-hint" hidden>Zum Löschen auf ein Gewerk tippen. Mängel behalten ihr Gewerk.</p>
+        <div id="trades-grid" class="choice-grid"></div>
+        <p id="trades-message" role="alert"></p>
+        <div class="dialog-buttons">
+          <button id="trades-clear" class="btn soft">Kein Gewerk</button>
+          <span class="spacer"></span>
+          <button id="trades-close" class="btn primary">Schließen</button>
+        </div>
+      </div>
+    </div>
+
     <div id="project-dialog" hidden>
       <div class="dialog-box glass-thick">
         <h2 id="project-dialog-title">Neues Projekt</h2>

@@ -4,7 +4,7 @@
 
 import Dexie from 'dexie';
 import type { EntityTable } from 'dexie';
-import { DEFAULT_TEXT_BLOCKS, IMPORTANCE, readMarking } from './defects.ts';
+import { DEFAULT_TEXT_BLOCKS, IMPORTANCE, TRADES, readMarking } from './defects.ts';
 import type { PartyKey } from './parties.ts';
 import type {
   Defect,
@@ -19,6 +19,7 @@ import type {
   ProjectStats,
   ReportSettings,
   TextBlock,
+  Trade,
 } from './types.ts';
 
 // Die Tabellen entstehen erst durch die Versionen unten, darum hier die Angabe, was drinliegt.
@@ -32,6 +33,7 @@ export const db = new Dexie('baumaengel') as Dexie & {
   reportSettings: EntityTable<ReportSettings, 'projectId'>;
   textBlocks: EntityTable<TextBlock, 'id'>;
   profiles: EntityTable<Profile, 'id'>;
+  trades: EntityTable<Trade, 'id'>;
 };
 
 // Hinter dem Namen stehen nur die Felder, nach denen gesucht wird.
@@ -164,8 +166,24 @@ db.version(8)
     })
   );
 
-// Läuft nur beim allerersten Start, sonst übernimmt das die Umstellung oben
-db.on('populate', (tx) => tx.table('textBlocks').bulkAdd(DEFAULT_TEXT_BLOCKS.map((text) => ({ text }))));
+// Neue Stufen (Etappe 4.24): Wichtig wird zu Mangel, Relevant zu Intern, Hinweis bleibt (readMarking).
+// Dazu die Gewerke-Liste für das Auswahlfenster, gefüllt mit den bisherigen Vorschlägen.
+db.version(9)
+  .stores({
+    trades: '++id', // { id, name } – gelten für alle Projekte
+  })
+  .upgrade(async (tx) => {
+    await tx.table('defects').toCollection().modify((pin) => {
+      pin.importance = readMarking(pin).importance;
+    });
+    await tx.table('trades').bulkAdd(TRADES.map((name) => ({ name })));
+  });
+
+// Läuft nur beim allerersten Start, sonst übernehmen das die Umstellungen oben
+db.on('populate', async (tx) => {
+  await tx.table('textBlocks').bulkAdd(DEFAULT_TEXT_BLOCKS.map((text) => ({ text })));
+  await tx.table('trades').bulkAdd(TRADES.map((name) => ({ name })));
+});
 
 // ---------- Projekte ----------
 
@@ -421,6 +439,31 @@ export function addTextBlock(text: string) {
 
 export function deleteTextBlock(id: number) {
   return db.textBlocks.delete(id);
+}
+
+// ---------- Gewerke ----------
+
+export async function listTrades() {
+  const trades = await db.trades.toArray();
+  return trades.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+}
+
+export function addTrade(name: string) {
+  return db.trades.add({ name });
+}
+
+// Mängel mit diesem Gewerk behalten es, es fehlt nur in der Auswahl
+export function deleteTrade(id: number) {
+  return db.trades.delete(id);
+}
+
+// Ergänzt beim Import die Gewerke, die es auf diesem Gerät noch nicht gibt
+export function addMissingTrades(names: string[]) {
+  return db.transaction('rw', db.trades, async () => {
+    const known = new Set((await db.trades.toArray()).map((trade) => trade.name.toLowerCase()));
+    const missing = [...new Set(names)].filter((name) => !known.has(name.toLowerCase()));
+    await db.trades.bulkAdd(missing.map((name) => ({ name })));
+  });
 }
 
 // ---------- Profile ----------

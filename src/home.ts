@@ -5,7 +5,7 @@
 import * as store from './db.ts';
 import { backupReminder, exportAllProjects, exportProject, importBackup } from './backup.ts';
 import type { BackupContents, ImportResult } from './backup.ts';
-import { IMPORTANCE, IMPORTANCE_TEXT } from './defects.ts';
+import { IMPORTANCE, IMPORTANCE_PLURAL, IMPORTANCE_TEXT } from './defects.ts';
 import { DIVISIONS, NO_DIVISION, activeDivision, assetUrl, divisionName, findDivision, setActiveDivision } from './divisions.ts';
 import { bindMenu } from './menu.ts';
 import { getPlanThumb } from './plan-thumb.ts';
@@ -271,7 +271,7 @@ function createLevelCounts({ open, doneCount }: ProjectStats) {
     count.className = level;
     const symbol = document.createElement('span');
     symbol.className = 'sw';
-    count.append(symbol, `${open[level]} ${IMPORTANCE_TEXT[level]}`);
+    count.append(symbol, `${open[level]} ${(open[level] === 1 ? IMPORTANCE_TEXT : IMPORTANCE_PLURAL)[level]}`);
     counts.appendChild(count);
   }
   if (doneCount > 0) {
