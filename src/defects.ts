@@ -132,7 +132,15 @@ export function readMarking(defect: {
   };
 }
 
-// Reihenfolge für Liste und Bericht: erst offene, dann erledigte Mängel,
+// Im Bericht stehen ohne andere Wahl Mängel und Hinweise, interne Punkte nicht
+export const DEFAULT_REPORT_LEVELS: Importance[] = ['mangel', 'hinweis'];
+
+// Reihenfolge im Bericht: nach Nummer, erledigte Mängel am Ende in ihrem eigenen Abschnitt
+export function sortForReport(pins: Defect[]): Defect[] {
+  return [...pins].sort((a, b) => Number(a.done) - Number(b.done) || a.number - b.number);
+}
+
+// Reihenfolge für die Mängelliste: erst offene, dann erledigte Mängel,
 // jeweils nach Wichtigkeit und innerhalb einer Stufe nach Nummer. Liefert eine Kopie.
 export function sortPins(pins: Defect[]): Defect[] {
   const rank = (pin: Defect) => (pin.done ? IMPORTANCE.length : 0) + IMPORTANCE.indexOf(pin.importance);

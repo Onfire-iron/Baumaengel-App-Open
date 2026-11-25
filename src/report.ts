@@ -2,11 +2,13 @@
 // PDF-Bericht erzeugen (A4 hochformat)
 // =============================================================
 //
-// Aufbau: Deckblatt, Projektangaben (Beteiligte, Datum usw.), Teilnehmer der Begehungen,
-// Legende mit Mängeltabelle, je Plan ein Übersichtsplan, je Mangel eine Seite (Planausschnitt, Text,
-// Fotos). Tabelle und Mängelseiten sind nach Wichtigkeit sortiert, erledigte Mängel folgen am Ende in
-// einem eigenen Abschnitt. Ab Seite 2 steht oben eine Kopfzeile mit Projekt, Adresse und Logo. Kopf- und Fußzeile
-// kommen am Schluss, weil erst dann die Seitenzahl feststeht.
+// Aufbau: Deckblatt mit den Projektangaben (Beteiligte, Begehungs- und Erstellungsdatum usw.), auf
+// Seite 2 das Titelbild (nur wenn eines gewählt ist), Teilnehmer der Begehungen, Legende mit
+// Mängeltabelle, je Plan ein Übersichtsplan, je Mangel eine Seite (Planausschnitt, Text, Fotos).
+// Tabelle und Mängelseiten sind nach Nummer sortiert, erledigte Mängel folgen am Ende in einem eigenen
+// Abschnitt. Es kommen nur die gewählten Punkttypen hinein (levels, z. B. ohne Intern).
+// Ab Seite 2 steht oben eine Kopfzeile mit Projektnummer, Projekt und Logo, unten die Seitenzahl.
+// Kopf- und Fußzeile kommen am Schluss, weil erst dann die Seitenzahl feststeht.
 //
 // Die Pläne werden mit PDF.js in hoher Auflösung als Bild gezeichnet. So klappt es mit
 // jedem PDF, auch mit Scans und gedrehten Seiten. Punkte und Texte sind dagegen
@@ -28,9 +30,9 @@ import {
 import type { Color, PDFFont, PDFImage, PDFPage } from 'pdf-lib';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import * as store from './db.ts';
-import { IMPORTANCE, IMPORTANCE_TEXT, formatDate, isOverdue, sortPins } from './defects.ts';
-import { reportLogoUrl } from './divisions.ts';
-import { googleMapsUrl, oneLineAddress } from './maps.ts';
+import { IMPORTANCE, IMPORTANCE_TEXT, formatDate, isOverdue, sortForReport } from './defects.ts';
+import { reportAddress, reportLogoUrl } from './divisions.ts';
+import { googleMapsUrl } from './maps.ts';
 import { INFO_PAGE_PARTIES } from './parties.ts';
 import { openPdf } from './pdf.ts';
 import { canvasToJpeg, shrinkPhoto } from './photos.ts';
@@ -48,8 +50,8 @@ interface ReportContext {
   top: number; // Oberkante des Inhalts unter der Kopfzeile, siehe layoutHeader
 }
 
-// Kopfzeile auf allen Seiten außer dem Deckblatt: links Name, Adresse, Projektnummer, Datum und
-// Ersteller, rechts das Logo in der Größe des Deckblatts. Sie ist auf jeder Seite gleich hoch.
+// Kopfzeile auf allen Seiten außer dem Deckblatt: links Projektnummer, Name, Datum und Ersteller,
+// rechts das Logo mit der Adresse des Büros darunter wie auf dem Deckblatt. rechts das Logo in der Größe des Deckblatts. Sie ist auf jeder Seite gleich hoch.
 interface HeaderLine {
   text: string;
   font: PDFFont;
@@ -60,7 +62,8 @@ interface HeaderLine {
 interface Header {
   lines: HeaderLine[];
   logo: { width: number; height: number } | null;
-  lineY: number; // Höhe der Trennlinie unter der Kopfzeile
+  office: string; // Adresse des Büros unter dem Logo
+  lineY: number; // Unterkante der Kopfzeile, darunter beginnt der Inhalt
 }
 
 export interface ReportOptions {
@@ -68,6 +71,7 @@ export interface ReportOptions {
   plans: Plan[];
   pins: Defect[];
   settings: Partial<ReportSettings>;
+  levels: Importance[]; // diese Punkttypen kommen in den Bericht
   dateText: string;
   reportDate: string;
   onProgress?: (done: number, total: number, text: string) => void;
@@ -133,8 +137,9 @@ const HEADER_LINE_HEIGHT = 1.3; // Zeilenabstand in der Kopfzeile, mal Schriftgr
 export async function buildReport({
   project,
   plans,
-  pins,
+  pins: allPins,
   settings,
+  levels,
   dateText,
   reportDate,
   onProgress,
@@ -146,7 +151,8 @@ export async function buildReport({
   const bold = await loadFont(doc, 'LiberationSans-Bold.ttf');
 
   const name = settings.name || project.name;
-  doc.setTitle(`Mängelbericht ${name}`);
+  const pins = allPins.filter((pin) => levels.includes(pin.importance));
+  doc.setTitle(`Bauüberwachungsbericht ${name}`);
   doc.setAuthor(settings.creator || '');
   doc.setCreator('Baumängel-App');
   doc.setLanguage('de-DE');
@@ -164,7 +170,7 @@ export async function buildReport({
   };
 
   r.logo = await loadLogo(doc, settings, project.division);
-  r.header = layoutHeader(r, name, settings, dateText);
+  r.header = layoutHeader(r, name, settings, dateText, reportAddress(project.division));
   r.top = r.header.lineY - 12;
 
   const pdfs = createPdfCache();
@@ -179,10 +185,10 @@ export async function buildReport({
     };
 
     await step('Deckblatt wird erstellt …');
-    await drawCover(r, name, settings);
-    drawProjectInfo(r, settings, dateText);
+    drawCover(r, name, settings, dateText);
+    await drawCoverPhoto(r, settings);
     drawInspections(r, settings.inspections ?? []);
-    drawLegend(r, plans, pins);
+    drawLegend(r, plans, pins, levels);
     let doneSectionDrawn = false;
 
     for (const [index, overview] of overviews.entries()) {
@@ -190,7 +196,7 @@ export async function buildReport({
       await drawOverview(r, overview, pins, pdfs);
     }
 
-    for (const [index, pin] of sortPins(pins).entries()) {
+    for (const [index, pin] of sortForReport(pins).entries()) {
       await step(`Mangel ${index + 1} von ${pins.length} wird erstellt …`);
       if (pin.done && !doneSectionDrawn) {
         drawDoneSection(r, pins.filter((p) => p.done).length);
@@ -538,34 +544,26 @@ async function renderRegion(pdfPage: PDFPageProxy, region: Region, targetPixels:
 }
 
 // =============================================================
-// Deckblatt
+// Deckblatt mit Projektangaben
 // =============================================================
 
-async function drawCover(r: ReportContext, name: string, settings: Partial<ReportSettings>) {
+const TITLE = 'Bauüberwachungsbericht';
+
+// Oben links der Titel, rechts das Logo und darunter die Adresse des Büros. Darunter Name, Adresse und
+// Projektnummer des Objekts und die Projektangaben. Das Titelbild steht auf Seite 2 (drawCoverPhoto).
+function drawCover(r: ReportContext, name: string, settings: Partial<ReportSettings>, dateText: string) {
   const page = addPage(r);
   let y = TOP;
 
-  // Platz für das Firmenlogo oben rechts
-  if (r.logo) {
-    const size = fit(r.logo.width, r.logo.height, LOGO_BOX.width, LOGO_BOX.height);
-    page.drawImage(r.logo, { x: PAGE_W - MARGIN - size.width, y: y - size.height, ...size });
-  }
-  drawText(r, page, 'Mängelbericht', MARGIN, y - 28, { font: r.bold, size: 28, color: COLOR.brand });
-  page.drawLine({
-    start: { x: MARGIN, y: y - 76 },
-    end: { x: PAGE_W - MARGIN, y: y - 76 },
-    thickness: 1,
-    color: COLOR.line,
-  });
-  y -= 92;
+  // Logo oben rechts, darunter die Adresse des Büros, wie in der Kopfzeile der übrigen Seiten
+  const right = drawLogoAndOffice(r, page);
 
-  // Titelbild
-  if (settings.coverPhoto) {
-    const photo = await r.doc.embedJpg(settings.coverPhoto);
-    const box = 370;
-    const rect = drawImageInBox(page, photo, MARGIN, y - box, CONTENT_W, box);
-    y = rect.y - 28;
-  }
+  // Der Titel wird kleiner, wenn er sonst an Logo oder Adresse stößt
+  const room = CONTENT_W - (right.width ? right.width + 18 : 0);
+  const titleSize = Math.min(28, (28 * room) / textWidth(r, TITLE, r.bold, 28));
+  drawText(r, page, TITLE, MARGIN, y - 28, { font: r.bold, size: titleSize, color: COLOR.brand });
+
+  y = Math.min(y - 76, right.bottom - 10) - 12;
 
   for (const line of wrapText(r, name, r.bold, 24, CONTENT_W).slice(0, 3)) {
     y -= 24;
@@ -587,7 +585,7 @@ async function drawCover(r: ReportContext, name: string, settings: Partial<Repor
     addLink(r, page, { x: MARGIN, y: y - 4, width: addressWidth, height: addressTop - y + 4 }, mapsUrl);
   }
 
-  // Projektnummer unter der Adresse (auf der Seite "Projektangaben" steht sie deshalb nicht)
+  // Projektnummer unter der Adresse (in den Projektangaben steht sie deshalb nicht)
   const projectNumber = settings.projectNumber?.trim();
   if (projectNumber) {
     if (addressWidth > 0) y -= 10;
@@ -599,26 +597,32 @@ async function drawCover(r: ReportContext, name: string, settings: Partial<Repor
       size: 13,
     });
   }
+
+  drawProjectInfo(r, page, y - 34, settings, dateText);
 }
 
-// =============================================================
-// Projektangaben (Seite 2)
-// =============================================================
-
-// Eigene Seite nach dem Deckblatt: Beteiligte, dann Datum und Ersteller als Tabelle,
-// Bezeichnung links, Wert rechts. Leere Angaben fallen weg, ist alles leer, entfällt die Seite.
-// Passt die Tabelle nicht auf eine Seite (sehr lange Angaben), geht sie auf der nächsten weiter.
-function drawProjectInfo(r: ReportContext, settings: Partial<ReportSettings>, dateText: string) {
-  const LABEL_SIZE = 12;
-  const VALUE_SIZE = 14;
-  const LINE = 19; // Zeilenabstand der Werte
-  const PAD = 11; // Abstand über und unter jeder Zeile der Tabelle
+// Projektangaben unter dem Textblock des Deckblatts: Beteiligte, dann Begehungsdatum (die letzte
+// Begehung), Erstellungsdatum und Ersteller als kompakte Tabelle, Bezeichnung links, Wert rechts.
+// Leere Angaben fallen weg. Reicht der Platz nicht, geht es auf der nächsten Seite weiter.
+function drawProjectInfo(
+  r: ReportContext,
+  firstPage: PDFPage,
+  top: number,
+  settings: Partial<ReportSettings>,
+  dateText: string
+) {
+  const LABEL_SIZE = 10;
+  const VALUE_SIZE = 11.5;
+  const LINE = 14.5; // Zeilenabstand der Werte
+  const PAD = 6; // Abstand über und unter jeder Zeile der Tabelle
   const SEPARATOR = rgb(0.84, 0.86, 0.89);
 
+  const lastInspection = (settings.inspections ?? []).map((inspection) => inspection.date).sort().at(-1);
   const groups = [
     INFO_PAGE_PARTIES.map(({ key, label }) => ({ label, value: settings[key]?.trim() ?? '' })),
     [
-      { label: 'Datum', value: dateText },
+      { label: 'Begehungsdatum', value: lastInspection ? formatDate(lastInspection) : '' },
+      { label: 'Erstellungsdatum', value: dateText },
       { label: 'Ersteller', value: settings.creator?.trim() ?? '' },
     ],
   ]
@@ -627,13 +631,15 @@ function drawProjectInfo(r: ReportContext, settings: Partial<ReportSettings>, da
   if (!groups.length) return;
 
   // Die Spalte für die Bezeichnungen ist so breit wie die längste davon ("Brandschutzdienststelle")
-  const labelWidth = Math.max(...groups.flat().map((row) => textWidth(r, row.label, r.regular, LABEL_SIZE))) + 20;
+  const labelWidth = Math.max(...groups.flat().map((row) => textWidth(r, row.label, r.regular, LABEL_SIZE))) + 18;
   const valueWidth = CONTENT_W - labelWidth;
 
-  let page = addPage(r);
-  let y = drawHeading(r, page, 'Projektangaben') - 6;
+  let page = firstPage;
+  let y = top;
+  drawText(r, page, 'Projektangaben', MARGIN, y, { font: r.bold, size: 14, color: COLOR.brand });
+  y -= 8;
   for (const [groupIndex, group] of groups.entries()) {
-    if (groupIndex > 0) y -= 22; // Abstand zwischen Beteiligten und Datum/Ersteller
+    if (groupIndex > 0) y -= 12; // Abstand zwischen Beteiligten und den Daten
     for (const row of group) {
       const lines = wrapText(r, row.value, r.regular, VALUE_SIZE, valueWidth).filter(Boolean).slice(0, 12);
       const height = PAD * 2 + lines.length * LINE;
@@ -641,7 +647,7 @@ function drawProjectInfo(r: ReportContext, settings: Partial<ReportSettings>, da
         page = addPage(r);
         y = drawHeading(r, page, 'Projektangaben (Fortsetzung)') - 6;
       }
-      let lineY = y - PAD - VALUE_SIZE;
+      let lineY = y - PAD - VALUE_SIZE + 1;
       drawText(r, page, row.label, MARGIN, lineY + 1, { size: LABEL_SIZE, color: COLOR.muted });
       for (const line of lines) {
         drawText(r, page, line, MARGIN + labelWidth, lineY, { size: VALUE_SIZE });
@@ -651,6 +657,18 @@ function drawProjectInfo(r: ReportContext, settings: Partial<ReportSettings>, da
       page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 0.6, color: SEPARATOR });
     }
   }
+}
+
+// Titelbild auf einer eigenen Seite nach dem Deckblatt, so groß wie möglich. Ohne Bild keine Seite.
+async function drawCoverPhoto(r: ReportContext, settings: Partial<ReportSettings>) {
+  if (!settings.coverPhoto) return;
+  const page = addPage(r);
+  const photo = await r.doc.embedJpg(settings.coverPhoto);
+  const top = r.top - 16;
+  const bottom = BOTTOM + 8;
+  const size = fit(photo.width, photo.height, CONTENT_W, top - bottom);
+  // oben bündig, waagerecht in der Mitte
+  page.drawImage(photo, { x: MARGIN + (CONTENT_W - size.width) / 2, y: top - size.height, ...size });
 }
 
 // =============================================================
@@ -743,12 +761,13 @@ function planLabel(pin: Defect, plans: Plan[]) {
   return (plan?.pageCount ?? 0) > 1 ? `${plan!.name}, Seite ${pin.page}` : plan?.name ?? '';
 }
 
-function drawLegend(r: ReportContext, plans: Plan[], pins: Defect[]) {
+function drawLegend(r: ReportContext, plans: Plan[], pins: Defect[], levels: Importance[]) {
   let page = addPage(r);
   let y = drawHeading(r, page, 'Legende') - 8;
 
+  // Nur die Punkttypen, die im Bericht vorkommen dürfen
   const openPins = pins.filter((p) => !p.done);
-  for (const importance of IMPORTANCE) {
+  for (const importance of IMPORTANCE.filter((level) => levels.includes(level))) {
     const count = openPins.filter((p) => p.importance === importance).length;
     drawPin(r, page, MARGIN + 9, y + 4, 9, 1, { importance, done: false });
     drawText(r, page, `${IMPORTANCE_TEXT[importance]}: ${count} offen`, MARGIN + 26, y, { size: 12 });
@@ -805,7 +824,7 @@ function drawLegend(r: ReportContext, plans: Plan[], pins: Defect[]) {
   const bandHeight = 24;
   const doneCount = pins.filter((p) => p.done).length;
 
-  sortPins(pins).forEach((pin, index, sorted) => {
+  sortForReport(pins).forEach((pin, index, sorted) => {
     const titleLines = wrapText(r, pin.title || 'Ohne Überschrift', r.regular, 10, columns[1].width);
     const planLines = wrapText(r, planLabel(pin, plans), r.regular, 10, columns[2].width);
     const who = [pin.trade, pin.company].filter(Boolean).join(' / ');
@@ -1097,11 +1116,19 @@ async function drawDefect(r: ReportContext, pin: Defect, pins: Defect[], plans: 
 // =============================================================
 
 // Legt die Kopfzeile fest, bevor die erste Seite entsteht: Ihre Höhe bestimmt, wo der Inhalt beginnt.
-// Mit dem Standardlogo passen Name, Adresse sowie Datum und Ersteller neben das Logo,
+// Mit dem Standardlogo passen Projektnummer, Name sowie Datum und Ersteller neben das Logo,
 // die Kopfzeile wird dann nicht höher als das Logo selbst.
-function layoutHeader(r: ReportContext, name: string, settings: Partial<ReportSettings>, dateText: string): Header {
+function layoutHeader(
+  r: ReportContext,
+  name: string,
+  settings: Partial<ReportSettings>,
+  dateText: string,
+  office: string
+): Header {
   const logo = r.logo ? fit(r.logo.width, r.logo.height, LOGO_BOX.width, LOGO_BOX.height) : null;
-  const width = CONTENT_W - (logo ? logo.width + 20 : 0);
+  const officeWidth = office ? textWidth(r, office, r.regular, OFFICE_SIZE) : 0;
+  const rightWidth = Math.max(logo?.width ?? 0, officeWidth);
+  const width = CONTENT_W - (rightWidth ? rightWidth + 20 : 0);
   const lines: HeaderLine[] = [];
 
   // Zu langer Text wird nach maxLines Zeilen mit " …" gekürzt
@@ -1113,44 +1140,58 @@ function layoutHeader(r: ReportContext, name: string, settings: Partial<ReportSe
     for (const line of wrapped) lines.push({ text: line, font, size, color });
   };
 
+  // Projektnummer über dem Namen, ohne Bezeichnung, beide blau und fett
+  add(settings.projectNumber?.trim() ?? '', r.bold, 12, COLOR.brand, 1);
   add(name, r.bold, 12, COLOR.brand, 2);
-  // Die Adresse in einer Zeile: aus den Zeilenumbrüchen werden Kommas
-  add(oneLineAddress(settings.address), r.regular, 9.5, COLOR.text, 2);
-  // Projektnummer direkt darunter, ohne Bezeichnung
-  add(settings.projectNumber?.trim() ?? '', r.regular, 9.5, COLOR.text, 1);
   const meta = [dateText && `Datum: ${dateText}`, settings.creator && `Ersteller: ${settings.creator}`];
   add(meta.filter(Boolean).join('   ·   '), r.regular, 8.5, COLOR.muted, 1);
 
   const textHeight = lines.reduce((sum, line) => sum + line.size * HEADER_LINE_HEIGHT, 0);
-  return { lines, logo, lineY: TOP - Math.max(logo?.height ?? 0, textHeight) - 10 };
+  const rightHeight = (logo?.height ?? 0) + (office ? OFFICE_GAP + 3 : 0);
+  return { lines, logo, office, lineY: TOP - Math.max(rightHeight, textHeight) - 10 };
 }
 
-function drawRule(page: PDFPage, y: number) {
-  page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 0.5, color: COLOR.line });
+const OFFICE_SIZE = 9; // Schriftgröße der Büro-Adresse unter dem Logo
+const OFFICE_GAP = 13; // Abstand ihrer Grundlinie zur Unterkante des Logos
+
+// Logo oben rechts und darunter rechtsbündig die Adresse des Büros, auf jeder Seite an derselben Stelle.
+// Liefert die Breite und die Unterkante des Ganzen.
+function drawLogoAndOffice(r: ReportContext, page: PDFPage) {
+  let width = 0;
+  let bottom = TOP;
+  if (r.logo) {
+    const size = fit(r.logo.width, r.logo.height, LOGO_BOX.width, LOGO_BOX.height);
+    page.drawImage(r.logo, { x: PAGE_W - MARGIN - size.width, y: TOP - size.height, ...size });
+    width = size.width;
+    bottom = TOP - size.height;
+  }
+  const office = r.header!.office;
+  if (office) {
+    const officeWidth = textWidth(r, office, r.regular, OFFICE_SIZE);
+    bottom -= OFFICE_GAP;
+    drawText(r, page, office, PAGE_W - MARGIN - officeWidth, bottom, { size: OFFICE_SIZE, color: COLOR.muted });
+    width = Math.max(width, officeWidth);
+  }
+  return { width, bottom };
 }
 
 function drawHeadersAndFooters(r: ReportContext) {
-  const { lines, logo, lineY } = r.header!;
+  const { lines } = r.header!;
   const pages = r.doc.getPages();
   pages.forEach((page, index) => {
     if (index === 0) return;
 
-    // Kopfzeile: Logo an derselben Stelle wie auf dem Deckblatt, Text oben bündig daneben
-    if (r.logo && logo) {
-      page.drawImage(r.logo, { x: PAGE_W - MARGIN - logo.width, y: TOP - logo.height, ...logo });
-    }
+    // Kopfzeile: Logo und Büro-Adresse an derselben Stelle wie auf dem Deckblatt, Text oben bündig daneben
+    drawLogoAndOffice(r, page);
     let y = TOP;
     for (const line of lines) {
       drawText(r, page, line.text, MARGIN, y - line.size * 0.8, line);
       y -= line.size * HEADER_LINE_HEIGHT;
     }
-    drawRule(page, lineY);
 
-    // Fußzeile: Name und Logo stehen schon oben, hier nur noch die Seitenzahl
-    drawRule(page, 42);
+    // Fußzeile: nur die Seitenzahl, rechts unten
     const pageText = `Seite ${index + 1} von ${pages.length}`;
     const pageWidth = textWidth(r, pageText, r.regular, 9);
     drawText(r, page, pageText, PAGE_W - MARGIN - pageWidth, 28, { size: 9, color: COLOR.muted });
-    drawText(r, page, 'Mängelbericht', MARGIN, 28, { size: 9, color: COLOR.muted });
   });
 }

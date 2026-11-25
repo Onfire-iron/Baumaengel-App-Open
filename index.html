@@ -497,7 +497,7 @@
         </label>
         <p class="dialog-hint">Die Adresse erscheint auch im Bericht und hilft bei der Suche.</p>
         <h3 class="dialog-subheading">Beteiligte und Projektnummer</h3>
-        <p class="dialog-hint">Alle freiwillig. Sie stehen im Bericht auf der Seite „Projektangaben“, die Projektnummer auf dem Deckblatt. Ergänzen lassen sie sich auch unter „Bericht erstellen“.</p>
+        <p class="dialog-hint">Alle freiwillig. Sie stehen im Bericht auf dem Deckblatt unter „Projektangaben“, die Projektnummer unter der Adresse. Ergänzen lassen sie sich auch unter „Bericht erstellen“.</p>
         <!-- Felder kommen aus src/parties.ts -->
         <div id="project-form-parties"></div>
         <label class="field">
@@ -554,9 +554,17 @@
               <span id="report-inspections-text"></span>
               <button id="report-inspections-btn" class="btn soft">Begehungen bearbeiten</button>
             </div>
+            <h3 class="dialog-subheading">Im Bericht</h3>
+            <!-- Mehrfachauswahl, gemerkt pro Projekt (reportLevels). Ohne Wahl: Mangel und Hinweis. -->
+            <div id="report-levels" class="segmented report-levels">
+              <button class="seg-btn mangel" data-level="mangel" aria-pressed="false"><span class="sw"></span><span class="level-text"></span></button>
+              <button class="seg-btn hinweis" data-level="hinweis" aria-pressed="false"><span class="sw"></span><span class="level-text"></span></button>
+              <button class="seg-btn intern" data-level="intern" aria-pressed="false"><span class="sw"></span><span class="level-text"></span></button>
+            </div>
+            <p class="dialog-hint report-levels-hint">Nicht gewählte Punkttypen fehlen im Bericht ganz, auch auf den Plänen. Die Nummern der übrigen bleiben.</p>
             <div class="field-row">
               <label class="field">
-                Datum
+                Erstellungsdatum
                 <input id="report-date" type="date" />
               </label>
               <label class="field">
@@ -566,7 +574,7 @@
             </div>
 
             <div class="field">
-              Titelbild
+              Titelbild (freiwillig, steht auf Seite 2)
               <div class="report-image">
                 <img id="report-cover-preview" alt="" hidden />
                 <button id="report-cover-btn" class="btn soft">Bild auswählen</button>
@@ -609,28 +617,34 @@
           </section>
         </div>
 
-        <!-- Vorschau von Deckblatt und Projektangaben, aufgebaut wie drawCover und drawProjectInfo in report.ts -->
+        <!-- Vorschau von Deckblatt und Titelbild-Seite, aufgebaut wie drawCover und drawCoverPhoto in report.ts -->
         <div class="report-side" aria-hidden="true">
           <div class="cover-page">
             <div class="cover-top">
-              <span class="cover-heading">Mängelbericht</span>
-              <img id="cover-logo" alt="" hidden />
+              <span class="cover-heading">Bauüberwachungsbericht</span>
+              <div class="cover-brand">
+                <img id="cover-logo" alt="" hidden />
+                <span id="cover-office"></span>
+              </div>
             </div>
-            <div class="cover-line"></div>
-            <img id="cover-photo" alt="" hidden />
             <div id="cover-name"></div>
             <div id="cover-address"></div>
             <div id="cover-number"><span>Projektnummer:</span> <span id="cover-number-value"></span></div>
+            <div id="cover-info" class="cover-info">
+              <span class="info-heading">Projektangaben</span>
+              <!-- Vor "Begehungsdatum" kommen die Beteiligten (renderCover in report-dialog.ts) -->
+              <dl id="cover-meta" class="cover-meta">
+                <dt id="cover-inspection-label">Begehungsdatum</dt>
+                <dd id="cover-inspection"></dd>
+                <dt id="cover-date-label">Erstellungsdatum</dt>
+                <dd id="cover-date"></dd>
+                <dt id="cover-creator-label">Ersteller</dt>
+                <dd id="cover-creator"></dd>
+              </dl>
+            </div>
           </div>
-          <div class="cover-page info-page">
-            <span class="info-heading">Projektangaben</span>
-            <!-- Vor "Datum" kommen die Beteiligten (renderCover in report-dialog.ts) -->
-            <dl id="cover-meta" class="cover-meta">
-              <dt id="cover-date-label">Datum</dt>
-              <dd id="cover-date"></dd>
-              <dt id="cover-creator-label">Ersteller</dt>
-              <dd id="cover-creator"></dd>
-            </dl>
+          <div id="cover-photo-page" class="cover-page photo-page" hidden>
+            <img id="cover-photo" alt="" hidden />
           </div>
         </div>
       </div>

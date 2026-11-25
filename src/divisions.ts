@@ -13,7 +13,11 @@ export interface Division {
   name: string; // für Vorleser und Auswahllisten, angezeigt wird sonst das Logo
   reportLogo: string; // Standardlogo im Bericht, Pfad in public/
   headerLogo: string; // Logo oben links auf der Startseite, mit durchsichtigem Hintergrund
+  address: string; // steht im Bericht auf dem Deckblatt unter dem Logo
 }
+
+// Platzhalter: die Adresse des eigenen Büros eintragen
+const OFFICE_ADDRESS = 'Musterstraße 1, 12345 Musterstadt';
 
 export const DIVISIONS: readonly Division[] = [
   // Platzhalter: Namen und Logos durch die eigenen ersetzen (die ids dürfen bleiben)
@@ -22,18 +26,21 @@ export const DIVISIONS: readonly Division[] = [
     name: 'Arbeitsplatz 1',
     reportLogo: 'bereiche/arbeitsplatz-1.png',
     headerLogo: 'bereiche/arbeitsplatz-1-leiste.png',
+    address: OFFICE_ADDRESS,
   },
   {
     id: 'arbeitsplatz-2',
     name: 'Arbeitsplatz 2',
     reportLogo: 'bereiche/arbeitsplatz-2.png',
     headerLogo: 'bereiche/arbeitsplatz-2-leiste.png',
+    address: OFFICE_ADDRESS,
   },
   {
     id: 'arbeitsplatz-3',
     name: 'Arbeitsplatz 3',
     reportLogo: 'bereiche/arbeitsplatz-3.png',
     headerLogo: 'bereiche/arbeitsplatz-3-leiste.png',
+    address: OFFICE_ADDRESS,
   },
 ];
 
@@ -60,6 +67,11 @@ export function assetUrl(path: string): string {
 // Ohne Bereich bleibt es beim bisherigen Standardlogo, damit sich ältere Berichte nicht ändern
 export function reportLogoUrl(id: string | null | undefined): string {
   return assetUrl(findDivision(id)?.reportLogo ?? 'logo.png');
+}
+
+// Adresse unter dem Logo auf dem Deckblatt. Ohne Bereich wie beim Logo: die des ersten Bereichs.
+export function reportAddress(id: string | null | undefined): string {
+  return (findDivision(id) ?? DIVISIONS[0]).address;
 }
 
 // ---------- Gewählter Bereich, gilt nur auf diesem Gerät (wie das Profil) ----------

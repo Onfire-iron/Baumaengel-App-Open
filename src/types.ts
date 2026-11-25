@@ -117,6 +117,9 @@ export interface ReportSettings extends PartyTexts {
   coverPhoto?: ArrayBuffer | null;
   logo?: ArrayBuffer | null; // fehlt = Standardlogo, null = kein Logo, sonst eigenes Bild
   inspections?: Inspection[]; // nach Datum sortiert, älteste zuerst
+  // Welche Punkttypen in den Bericht kommen. Fehlt = Mangel und Hinweis (Intern bleibt intern).
+  // Gilt nur auf diesem Gerät, kommt nicht ins Backup.
+  reportLevels?: Importance[];
 }
 
 // Wer gerade mit dem Gerät arbeitet. Gilt nur auf diesem Gerät und kommt nicht ins Backup.

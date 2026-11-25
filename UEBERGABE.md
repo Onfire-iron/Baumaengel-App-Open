@@ -328,7 +328,7 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
 - **Stufen (seit 4.24):** Mangel (rot, Kreis), Hinweis (grün, Raute), Intern (petrol, Quadrat), in dieser
   Reihenfolge. Vorher Wichtig/Relevant/Hinweis: DB-Version 9 und `readMarking` setzen Wichtig auf Mangel
   und Relevant auf Intern um (gleiche Form). Im Code heißt das Feld weiter `importance`, im Bericht
-  die Spalte "Art". Interne Punkte stehen derzeit wie alle anderen im Bericht.
+  die Spalte "Art". Welche Stufen in den Bericht kommen, wird beim Erstellen gewählt (siehe Bericht).
 - **Gewerke-Liste (seit 4.24):** Die Kachel "Gewerk" öffnet das Fenster "Gewerk wählen" (`trades-dialog.ts`)
   mit Kacheln aus der Tabelle `trades` (für alle Projekte, anfangs `TRADES` aus `defects.ts`). Tippen
   wählt, Suchen filtert, ein neuer Name lässt sich direkt hinzufügen, "Bearbeiten" löscht Einträge
@@ -341,6 +341,16 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
   `showPicker()`. "×" oben rechts leert das Datum. Die Kachel "Textbaustein" öffnet vorerst nur einen
   Platzhalter; die Bausteine nach Kategorien kommen später. Die alten Bausteine bleiben in Datenbank und
   Backup, sind aber derzeit nicht auswählbar.
+- **Bericht (seit 4.26):** Titel "Bauüberwachungsbericht". Deckblatt: Logo oben rechts, darunter die
+  Adresse des Büros (`address` in `divisions.ts`, steht auch in jeder Kopfzeile unter dem Logo), kein Strich, dann Name, Adresse und Projektnummer des Objekts und
+  kompakt die Projektangaben (Beteiligte, Begehungsdatum = letzte Begehung, Erstellungsdatum,
+  Ersteller). Das Titelbild ist freiwillig und steht allein auf Seite 2, ohne Bild rückt der Rest nach.
+  Kopfzeile: Projektnummer und Name blau und fett, darunter Datum und Ersteller, keine Objektadresse
+  und keine Trennlinie mehr. Fußzeile nur noch mit der Seitenzahl. Tabelle und Mängelseiten nach Nummer (`sortForReport`),
+  die erledigten weiter am Ende in ihrem Abschnitt. Im Berichtsfenster unter "Im Bericht" wählbar, welche
+  Punkttypen hineinkommen (`reportLevels`, ohne Wahl Mangel und Hinweis). Nicht gewählte fehlen
+  überall, auch auf den Plänen und in der Legende; die Nummern der übrigen bleiben (Lücken möglich).
+  `reportLevels` gilt nur auf dem Gerät und kommt nicht ins Backup.
 - **Daneben tippen schließt:** Bei allen Fenstern mit abgedunkeltem Hintergrund wirkt ein Tipp auf die
   dunkle Fläche wie der Schließen-Knopf (`outside-tap.ts`), nur wenn der Finger auch dort aufgesetzt hat.
   Ausnahmen: Während der Bericht entsteht, bleibt das Fenster offen. Im Projektfenster wird bei

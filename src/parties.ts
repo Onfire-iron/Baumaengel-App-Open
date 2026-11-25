@@ -5,7 +5,7 @@
 // Freie Textfelder, keines ist Pflicht. Sie stehen in "Neues Projekt" / "Projekt bearbeiten" und
 // in "Bericht erstellen" und sind dort dieselben Angaben: Sie liegen wie die Adresse bei den
 // Angaben für den Bericht (ReportSettings), was man an einer Stelle einträgt, steht auch an der
-// anderen. Im Bericht erscheinen sie auf Seite 2 "Projektangaben" (drawProjectInfo in report.ts),
+// anderen. Im Bericht erscheinen sie auf dem Deckblatt unter "Projektangaben" (drawProjectInfo in report.ts),
 // leere Felder nicht. Die Projektnummer steht stattdessen auf dem Deckblatt und in der Kopfzeile.
 // multiline: mehrzeiliges Feld (z. B. Name und Anschrift), sonst eine Zeile.
 
@@ -21,7 +21,7 @@ export const PARTIES = [
 export type PartyKey = (typeof PARTIES)[number]['key'];
 
 // Die Projektnummer steht im Bericht auf dem Deckblatt unter der Adresse, die übrigen Angaben auf
-// der Seite "Projektangaben"
+// in den Projektangaben darunter
 export const INFO_PAGE_PARTIES = PARTIES.filter(({ key }) => key !== 'projectNumber');
 
 export type PartyFields = Record<PartyKey, HTMLTextAreaElement | HTMLInputElement>;

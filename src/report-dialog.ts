@@ -3,14 +3,14 @@
 // =============================================================
 
 import * as store from './db.ts';
-import { formatDate, todayIso } from './defects.ts';
-import { reportLogoUrl } from './divisions.ts';
+import { DEFAULT_REPORT_LEVELS, IMPORTANCE, IMPORTANCE_PLURAL, IMPORTANCE_TEXT, formatDate, todayIso } from './defects.ts';
+import { reportAddress, reportLogoUrl } from './divisions.ts';
 import { openInspectionsDialog } from './inspections-dialog.ts';
 import { INFO_PAGE_PARTIES, PARTIES, createPartyFields } from './parties.ts';
 import { shrinkPhoto } from './photos.ts';
 import { activeProfileName } from './profiles.ts';
 import { saveFile, safeFileName } from './share.ts';
-import type { Defect, Plan, Project, ReportSettings } from './types.ts';
+import type { Defect, Importance, Plan, Project, ReportSettings } from './types.ts';
 import { clickVisible, closeOnOutsideTap } from './outside-tap.ts';
 
 const dialog = document.getElementById('report-dialog') as HTMLElement;
@@ -32,7 +32,13 @@ const coverAddress = document.getElementById('cover-address') as HTMLElement;
 const coverNumber = document.getElementById('cover-number') as HTMLElement;
 const coverNumberValue = document.getElementById('cover-number-value') as HTMLElement;
 const coverMeta = document.getElementById('cover-meta') as HTMLElement;
-const infoPage = coverMeta.closest('.info-page') as HTMLElement;
+const coverInfo = document.getElementById('cover-info') as HTMLElement;
+const coverOffice = document.getElementById('cover-office') as HTMLElement;
+const coverInspection = document.getElementById('cover-inspection') as HTMLElement;
+const coverInspectionLabel = document.getElementById('cover-inspection-label') as HTMLElement;
+const photoPage = document.getElementById('cover-photo-page') as HTMLElement;
+const levelBtns = document.querySelectorAll<HTMLButtonElement>('#report-levels .seg-btn');
+const createBtn = document.getElementById('report-create') as HTMLButtonElement;
 const coverDate = document.getElementById('cover-date') as HTMLElement;
 const coverDateLabel = document.getElementById('cover-date-label') as HTMLElement;
 const coverCreator = document.getElementById('cover-creator') as HTMLElement;
@@ -84,16 +90,17 @@ export async function openReportDialog(project: Project, plans: Plan[], pins: De
   creatorInput.value = settings.creator;
   dateInput.value = todayIso(); // Das Datum gilt für diesen Bericht und wird nicht gemerkt
   formMessage.textContent = '';
+  coverOffice.textContent = reportAddress(project.division);
   for (const key of Object.keys(images) as ImageKey[]) showImage(key);
   showInspectionCount();
+  showLevels();
   renderCover();
 
   showSection(formSection);
   dialog.hidden = false;
 }
 
-// Vorschau von Deckblatt und Projektangaben: zeigt die Angaben so, wie drawCover und
-// drawProjectInfo in report.ts sie setzen
+// Vorschau des Deckblatts: zeigt die Angaben so, wie drawCover und drawProjectInfo in report.ts sie setzen
 function renderCover() {
   coverName.textContent = nameInput.value.trim() || current!.project.name;
   coverAddress.textContent = addressInput.value;
@@ -103,8 +110,11 @@ function renderCover() {
   coverCreator.textContent = creatorInput.value;
   coverDate.hidden = coverDateLabel.hidden = !dateInput.value;
   coverCreator.hidden = coverCreatorLabel.hidden = !creatorInput.value;
+  const lastInspection = lastInspectionDate();
+  coverInspection.textContent = lastInspection ? formatDate(lastInspection) : '';
+  coverInspection.hidden = coverInspectionLabel.hidden = !lastInspection;
 
-  // Beteiligte vor Datum und Ersteller, nur die ausgefüllten
+  // Beteiligte vor den Daten, nur die ausgefüllten
   for (const old of coverMeta.querySelectorAll('.cover-party')) old.remove();
   const parties = INFO_PAGE_PARTIES.filter(({ key }) => partyInputs[key].value.trim()).flatMap(({ key, label }) => {
     const dt = document.createElement('dt');
@@ -114,15 +124,52 @@ function renderCover() {
     for (const el of [dt, dd]) el.className = 'cover-party';
     return [dt, dd];
   });
-  coverDateLabel.before(...parties);
+  coverInspectionLabel.before(...parties);
   // Danach etwas Abstand, wie im Bericht
-  const firstAfter = dateInput.value ? [coverDateLabel, coverDate] : [coverCreatorLabel, coverCreator];
-  for (const el of [coverDateLabel, coverDate, coverCreatorLabel, coverCreator]) {
-    el.classList.toggle('cover-gap', parties.length > 0 && firstAfter.includes(el));
-  }
-  // Ohne jede Angabe entfällt die Seite auch im Bericht
-  infoPage.hidden = !parties.length && !dateInput.value && !creatorInput.value.trim();
+  const dates = [
+    [coverInspectionLabel, coverInspection],
+    [coverDateLabel, coverDate],
+    [coverCreatorLabel, coverCreator],
+  ];
+  const firstAfter = dates.find(([label]) => !label.hidden) ?? [];
+  for (const el of dates.flat()) el.classList.toggle('cover-gap', parties.length > 0 && firstAfter.includes(el));
+  // Ohne jede Angabe entfallen die Projektangaben auch im Bericht
+  coverInfo.hidden = !parties.length && dates.every(([label]) => label.hidden);
 }
+
+function lastInspectionDate() {
+  return (current!.settings.inspections ?? []).map((inspection) => inspection.date).sort().at(-1);
+}
+
+// ---------- Welche Punkttypen in den Bericht kommen ----------
+
+function selectedLevels(): Importance[] {
+  return current!.settings.reportLevels ?? DEFAULT_REPORT_LEVELS;
+}
+
+function showLevels() {
+  const levels = selectedLevels();
+  levelBtns.forEach((btn) => {
+    const level = btn.dataset.level as Importance;
+    const count = current!.pins.filter((pin) => pin.importance === level).length;
+    btn.querySelector('.level-text')!.textContent = `${(count === 1 ? IMPORTANCE_TEXT : IMPORTANCE_PLURAL)[level]} (${count})`;
+    const on = levels.includes(level);
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-pressed', String(on));
+  });
+  createBtn.disabled = levels.length === 0;
+  formMessage.textContent = levels.length === 0 ? 'Mindestens einen Punkttyp für den Bericht wählen.' : '';
+}
+
+levelBtns.forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const level = btn.dataset.level as Importance;
+    const levels = selectedLevels();
+    const next = levels.includes(level) ? levels.filter((l) => l !== level) : [...levels, level];
+    remember({ reportLevels: IMPORTANCE.filter((l) => next.includes(l)) });
+    showLevels();
+  });
+});
 
 function showInspectionCount() {
   const inspections = current!.settings.inspections ?? [];
@@ -136,7 +183,10 @@ document.getElementById('report-inspections-btn')!.addEventListener('click', () 
   const opened = current!;
   openInspectionsDialog(opened.project, (inspections) => {
     opened.settings.inspections = inspections;
-    if (current === opened) showInspectionCount();
+    if (current === opened) {
+      showInspectionCount();
+      renderCover();
+    }
   }).catch((err) => {
     console.error(err);
     formMessage.textContent = 'Die Begehungen konnten nicht geladen werden.';
@@ -235,6 +285,7 @@ function showImage(key: ImageKey, clearOnly: boolean = false) {
     : isDefault && defaultSrc;
   preview.hidden = !src;
   cover.hidden = !src;
+  if (key === 'coverPhoto') photoPage.hidden = !src; // das Titelbild hat eine eigene Seite
   removeBtn.hidden = !src;
   if (resetBtn) resetBtn.hidden = isDefault;
   if (src) {
@@ -269,6 +320,7 @@ document.getElementById('report-create')!.addEventListener('click', async () => 
       plans,
       pins,
       settings,
+      levels: selectedLevels(),
       dateText,
       reportDate: dateInput.value || todayIso(), // Stichtag für überfällige Mängel
       signal: abortController.signal,
@@ -280,7 +332,7 @@ document.getElementById('report-create')!.addEventListener('click', async () => 
     });
 
     const name = safeFileName(settings.name || project.name, 'Projekt');
-    result = { blob, fileName: `Maengelbericht ${name} ${dateInput.value || todayIso()}.pdf` };
+    result = { blob, fileName: `Bauueberwachungsbericht ${name} ${dateInput.value || todayIso()}.pdf` };
     doneText.textContent = `Der Bericht ist fertig (${formatSize(blob.size)}).`;
     showSection(doneSection);
   } catch (err) {
