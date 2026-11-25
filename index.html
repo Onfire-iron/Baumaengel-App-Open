@@ -535,66 +535,145 @@
     <div id="report-dialog" hidden>
       <div class="dialog-box wide-box glass-thick">
         <div class="report-main">
-          <h2>Bericht erstellen</h2>
+          <div class="report-head">
+            <h2>Bericht erstellen</h2>
+            <button id="report-x" class="btn icon" aria-label="Schließen">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
 
-          <section id="report-form">
-            <label class="field">
-              Projektname
-              <input id="report-name" type="text" autocomplete="off" />
-            </label>
-            <label class="field">
-              Adresse (gilt fürs ganze Projekt)
-              <textarea id="report-address" rows="2"></textarea>
-            </label>
-            <h3 class="dialog-subheading">Beteiligte und Projektnummer (gelten fürs ganze Projekt)</h3>
-            <!-- Felder kommen aus src/parties.ts -->
-            <div id="report-parties"></div>
-            <h3 class="dialog-subheading">Begehungen</h3>
-            <div class="report-inspections">
-              <span id="report-inspections-text"></span>
-              <button id="report-inspections-btn" class="btn soft">Begehungen bearbeiten</button>
-            </div>
-            <h3 class="dialog-subheading">Im Bericht</h3>
-            <!-- Mehrfachauswahl, gemerkt pro Projekt (reportLevels). Ohne Wahl: Mangel und Hinweis. -->
-            <div id="report-levels" class="segmented report-levels">
-              <button class="seg-btn mangel" data-level="mangel" aria-pressed="false"><span class="sw"></span><span class="level-text"></span></button>
-              <button class="seg-btn hinweis" data-level="hinweis" aria-pressed="false"><span class="sw"></span><span class="level-text"></span></button>
-              <button class="seg-btn intern" data-level="intern" aria-pressed="false"><span class="sw"></span><span class="level-text"></span></button>
-            </div>
-            <p class="dialog-hint report-levels-hint">Nicht gewählte Punkttypen fehlen im Bericht ganz, auch auf den Plänen. Die Nummern der übrigen bleiben.</p>
-            <div class="field-row">
-              <label class="field">
-                Erstellungsdatum
-                <input id="report-date" type="date" />
-              </label>
-              <label class="field">
-                Ersteller
-                <input id="report-creator" type="text" autocomplete="name" />
+          <!-- Aufbau wie "Alle Details": oben, was sich bei jedem Bericht ändert, darunter aufklappbare
+               Abschnitte mit einer Zusammenfassung in der Kopfzeile (report-dialog.ts) -->
+          <section id="report-form" class="report-form">
+            <div class="tiles">
+              <div class="tile date-tile">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" /></svg>
+                <span class="tile-text"><span class="tile-label">Erstellungsdatum</span><span class="tile-value"></span></span>
+                <input id="report-date" type="date" aria-label="Erstellungsdatum" />
+              </div>
+              <label class="tile">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.500 20a7.500 7.500 0 0 1 15 0" /></svg>
+                <span class="tile-text">
+                  <span class="tile-label">Ersteller</span>
+                  <input id="report-creator" class="tile-input" type="text" autocomplete="name" placeholder="Name eintragen" />
+                </span>
               </label>
             </div>
 
-            <div class="field">
-              Titelbild (freiwillig, steht auf Seite 2)
-              <div class="report-image">
-                <img id="report-cover-preview" alt="" hidden />
-                <button id="report-cover-btn" class="btn soft">Bild auswählen</button>
-                <button id="report-cover-remove" class="btn danger" hidden>Entfernen</button>
-                <input id="report-cover-input" type="file" accept="image/*" hidden />
+            <button id="report-inspections-btn" class="tile block-tile">
+              <span class="tile-icon"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a3.500 3.500 0 1 0 0-7 3.500 3.500 0 0 0 0 7ZM3 20a6 6 0 0 1 12 0M16 4.500a3.500 3.500 0 0 1 0 6.500M18 14.500a6 6 0 0 1 3 5.500" /></svg></span>
+              <span class="tile-text"><span class="tile-label">Begehungen und Teilnehmer</span><span id="report-inspections-text" class="tile-value"></span></span>
+              <svg class="i tile-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+            </button>
+
+            <div class="report-block">
+              <span class="block-label">Im Bericht</span>
+              <!-- Mehrfachauswahl, gemerkt pro Projekt (reportLevels). Ohne Wahl: Mangel und Hinweis. -->
+              <div id="report-levels" class="segmented report-levels">
+                <button class="seg-btn mangel" data-level="mangel" aria-pressed="false"><span class="sw"></span><span class="level-text"></span></button>
+                <button class="seg-btn hinweis" data-level="hinweis" aria-pressed="false"><span class="sw"></span><span class="level-text"></span></button>
+                <button class="seg-btn intern" data-level="intern" aria-pressed="false"><span class="sw"></span><span class="level-text"></span></button>
               </div>
+              <p class="block-hint">Nicht gewählte Punkttypen fehlen im Bericht ganz, auch auf den Plänen. Die Nummern der übrigen bleiben.</p>
             </div>
-            <div class="field">
-              Firmenlogo
-              <div class="report-image">
-                <img id="report-logo-preview" alt="" hidden />
-                <button id="report-logo-btn" class="btn soft">Bild auswählen</button>
-                <button id="report-logo-reset" class="btn soft" hidden>Standardlogo</button>
-                <button id="report-logo-remove" class="btn danger" hidden>Entfernen</button>
-                <input id="report-logo-input" type="file" accept="image/*" hidden />
+
+            <!-- Angaben zur Baukontrolle: Tabelle im Bericht, siehe control-fields.ts -->
+            <details id="report-control" class="report-section" open>
+              <summary>
+                <span class="tile-icon"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6v3H9zM7 5.500H5V21h14V5.500h-2M8.500 12l2 2 4-4M8.500 17.500h7" /></svg></span>
+                <span class="tile-text"><span class="section-title">Angaben zur Baukontrolle</span><span id="report-control-summary" class="section-summary"></span></span>
+                <svg class="i section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              </summary>
+              <div class="report-section-body">
+                <label class="field">
+                  Veranlassung
+                  <input id="report-occasion" type="text" autocomplete="off" />
+                </label>
+                <div id="report-occasion-chips" class="suggestions"></div>
+
+                <div class="field">
+                  <div class="field-head">
+                    <label for="report-documents">Unterlagen</label>
+                    <button id="report-documents-bullet" class="btn soft bullet-btn" type="button">• Aufzählung</button>
+                  </div>
+                  <textarea id="report-documents" rows="4" placeholder="z. B. Brandschutzkonzept, Stand, Baugenehmigung"></textarea>
+                </div>
+
+                <div class="field">
+                  Begangene Gebäudeteile
+                  <div id="report-plans" class="choice-grid plan-choices"></div>
+                </div>
+
+                <label class="field">
+                  Ausführungsstand
+                  <textarea id="report-execution" rows="2" placeholder="z. B. Rohbau abgeschlossen, Innenausbau läuft"></textarea>
+                </label>
+
+                <div class="field">
+                  <div class="field-head">
+                    <label for="report-proofs">Vorzulegende Unterlagen (Liste)</label>
+                    <button id="report-proofs-bullet" class="btn soft bullet-btn" type="button">• Aufzählung</button>
+                  </div>
+                  <textarea id="report-proofs" rows="6"></textarea>
+                  <div class="field-foot">
+                    <span>Der feste Absatz davor und die Texte zu Sachverständigen und Abnahmebefund stehen automatisch im Bericht.</span>
+                    <button id="report-proofs-reset" class="btn link" type="button" hidden>Vorgabe</button>
+                  </div>
+                </div>
               </div>
-            </div>
+            </details>
+
+            <details id="report-project" class="report-section">
+              <summary>
+                <span class="tile-icon"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V9h6v11M10 20V4h10v16M3 20h18M13.500 8h3M13.500 12h3M13.500 16h3" /></svg></span>
+                <span class="tile-text"><span class="section-title">Projekt und Beteiligte</span><span id="report-project-summary" class="section-summary"></span></span>
+                <svg class="i section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              </summary>
+              <div class="report-section-body">
+                <label class="field">
+                  Projektname
+                  <input id="report-name" type="text" autocomplete="off" />
+                </label>
+                <label class="field">
+                  Adresse (gilt fürs ganze Projekt)
+                  <textarea id="report-address" rows="2"></textarea>
+                </label>
+                <!-- Felder kommen aus src/parties.ts -->
+                <div id="report-parties"></div>
+              </div>
+            </details>
+
+            <details id="report-images" class="report-section">
+              <summary>
+                <span class="tile-icon"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 16l5-5 4 4 2.500-2.500L20 17M15.500 9.500h.01" /></svg></span>
+                <span class="tile-text"><span class="section-title">Titelbild und Logo</span><span id="report-images-summary" class="section-summary"></span></span>
+                <svg class="i section-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              </summary>
+              <div class="report-section-body">
+                <div class="field">
+                  Titelbild (freiwillig, steht auf Seite 2)
+                  <div class="report-image">
+                    <img id="report-cover-preview" alt="" hidden />
+                    <button id="report-cover-btn" class="btn soft">Bild auswählen</button>
+                    <button id="report-cover-remove" class="btn danger" hidden>Entfernen</button>
+                    <input id="report-cover-input" type="file" accept="image/*" hidden />
+                  </div>
+                </div>
+                <div class="field">
+                  Firmenlogo
+                  <div class="report-image">
+                    <img id="report-logo-preview" alt="" hidden />
+                    <button id="report-logo-btn" class="btn soft">Bild auswählen</button>
+                    <button id="report-logo-reset" class="btn soft" hidden>Standardlogo</button>
+                    <button id="report-logo-remove" class="btn danger" hidden>Entfernen</button>
+                    <input id="report-logo-input" type="file" accept="image/*" hidden />
+                  </div>
+                </div>
+              </div>
+            </details>
 
             <p id="report-message" role="alert"></p>
-            <div class="dialog-buttons">
+            <div class="dialog-buttons report-actions">
               <button id="report-close" class="btn soft">Schließen</button>
               <button id="report-create" class="btn primary">Bericht erstellen</button>
             </div>
@@ -617,7 +696,7 @@
           </section>
         </div>
 
-        <!-- Vorschau von Deckblatt und Titelbild-Seite, aufgebaut wie drawCover und drawCoverPhoto in report.ts -->
+        <!-- Vorschau von Deckblatt, Titelbild-Seite und Angaben zur Baukontrolle, aufgebaut wie im Bericht (report.ts) -->
         <div class="report-side" aria-hidden="true">
           <div class="cover-page">
             <div class="cover-top">
@@ -645,6 +724,11 @@
           </div>
           <div id="cover-photo-page" class="cover-page photo-page" hidden>
             <img id="cover-photo" alt="" hidden />
+          </div>
+          <!-- Angaben zur Baukontrolle wie drawControlTable in report.ts -->
+          <div class="cover-page control-page">
+            <span class="info-heading">Angaben zur Baukontrolle</span>
+            <div id="cover-control" class="control-table"></div>
           </div>
         </div>
       </div>

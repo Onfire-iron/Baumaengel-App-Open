@@ -203,6 +203,9 @@ src/
   text-blocks.ts      Fenster "Textbausteine" (vorerst Platzhalter)
   trades-dialog.ts    Fenster "Gewerk wählen": Gewerke-Liste mit Suche, Ergänzen, Löschen
   outside-tap.ts      Tippen neben ein Fenster schließt es (wie sein Schließen-Knopf)
+  control-fields.ts   Angaben zur Baukontrolle: Vorgaben, feste Texte, Aufzählungen erkennen
+  bullet-field.ts     Textfeld mit Aufzählungspunkten ("• Aufzählung", Enter setzt fort)
+  date-tile.ts        Datumskachel (Datum als Text, unsichtbares Datumsfeld darüber)
   search.ts           gemeinsame Suchregeln für Projektsuche und Mängelliste
   menu.ts, share.ts, status.ts, theme.ts   Menüs, Datei herausgeben, Meldungen, Darstellung
   style.css           alle Styles
@@ -230,7 +233,7 @@ src/
 - Geänderte Felder auch in `types.ts` nachziehen.
 - PDFs und Fotos liegen als `ArrayBuffer`, weil Safari mit Blobs in IndexedDB Probleme hatte.
 
-**Backup (`backup.ts`):** Ein ZIP mit `projekt.json`, `plaene/`, `fotos/` und `bericht/`, aktuell Format-Version 8.
+**Backup (`backup.ts`):** Ein ZIP mit `projekt.json`, `plaene/`, `fotos/` und `bericht/`, aktuell Format-Version 9.
 
 - Alte Backups müssen importierbar bleiben: ohne Nummern, mit `status` statt Wichtigkeit, Fotos nur
   als Dateiname, ohne `report`, `textBlocks`, `trades` und `createdBy`, mit den alten Stufen
@@ -351,6 +354,19 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
   Punkttypen hineinkommen (`reportLevels`, ohne Wahl Mangel und Hinweis). Nicht gewählte fehlen
   überall, auch auf den Plänen und in der Legende; die Nummern der übrigen bleiben (Lücken möglich).
   `reportLevels` gilt nur auf dem Gerät und kommt nicht ins Backup.
+- **Angaben zur Baukontrolle (seit 4.27):** Tabelle nach dem Deckblatt (nach dem Titelbild, falls es
+  eines gibt). Eingetragen im Berichtsfenster: Veranlassung (Vorgabe aus `OCCASIONS`, später aus den
+  Textbausteinen), Unterlagen (mit Aufzählung),
+  begangene Gebäudeteile (Auswahl aus den Plänen, `inspectedPlanIds`), Ausführungsstand und die Liste
+  der vorzulegenden Unterlagen (Vorgabe in `DEFAULT_REQUIRED_PROOFS`). Fest im Bericht: der Absatz vor
+  dieser Liste (mit dem Empfänger je Bereich, `recipient` in `divisions.ts`), Sachverständige und
+  Abnahmebefund. Alle festen Texte in `control-fields.ts` sind Beispiele und durch eigene zu ersetzen. Leere Eingaben fallen weg. Alles gilt fürs Projekt und kommt ins
+  Backup (Format 9, die Plan-ids werden beim Import umgesetzt).
+- **Berichtsfenster (seit 4.27):** Aufbau wie "Alle Details": oben Kacheln für Erstellungsdatum,
+  Ersteller und Begehungen, die Auswahl der Punkttypen, darunter aufklappbare Abschnitte (`<details>`)
+  "Angaben zur Baukontrolle", "Projekt und Beteiligte", "Titelbild und Logo" mit einer Zusammenfassung
+  in der Kopfzeile (`showSummaries`). Schließen und Bericht erstellen bleiben unten stehen.
+  Die Vorschau rechts zeigt Deckblatt, Titelbild-Seite und die Tabelle (`renderControlPreview`).
 - **Daneben tippen schließt:** Bei allen Fenstern mit abgedunkeltem Hintergrund wirkt ein Tipp auf die
   dunkle Fläche wie der Schließen-Knopf (`outside-tap.ts`), nur wenn der Finger auch dort aufgesetzt hat.
   Ausnahmen: Während der Bericht entsteht, bleibt das Fenster offen. Im Projektfenster wird bei

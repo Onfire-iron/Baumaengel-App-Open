@@ -120,6 +120,12 @@ export interface ReportSettings extends PartyTexts {
   // Welche Punkttypen in den Bericht kommen. Fehlt = Mangel und Hinweis (Intern bleibt intern).
   // Gilt nur auf diesem Gerät, kommt nicht ins Backup.
   reportLevels?: Importance[];
+  // Angaben zur Baukontrolle, siehe control-fields.ts. Fehlt = Vorgabe bzw. leer.
+  occasion?: string; // Veranlassung
+  documents?: string; // Unterlagen, Zeilen mit "• " sind Aufzählungspunkte
+  inspectedPlanIds?: number[]; // begangene Gebäudeteile: ids der Pläne
+  executionState?: string; // Ausführungsstand
+  requiredProofs?: string; // Liste unter "Vorzulegende Unterlagen"
 }
 
 // Wer gerade mit dem Gerät arbeitet. Gilt nur auf diesem Gerät und kommt nicht ins Backup.
@@ -183,6 +189,12 @@ export interface BackupReport extends PartyTexts {
   coverPhoto?: string; // Dateiname im ZIP
   logo?: string | null; // Dateiname im ZIP, null = bewusst kein Logo
   inspections?: Inspection[]; // seit Version 7, beim Import ungeprüft (readInspections)
+  // seit Version 9: Angaben zur Baukontrolle. inspectedPlanIds sind die ids aus "plans" im Backup.
+  occasion?: string;
+  documents?: string;
+  inspectedPlanIds?: number[];
+  executionState?: string;
+  requiredProofs?: string;
 }
 
 // So kann die Datei beim Import aussehen: Alte Backups kennen viele Felder noch nicht,

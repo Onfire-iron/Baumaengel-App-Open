@@ -2,9 +2,22 @@
 // Fenster "Bericht erstellen": Formular, Fortschritt, fertige Datei
 // =============================================================
 
+import { initBulletField } from './bullet-field.ts';
+import {
+  DEFAULT_REQUIRED_PROOFS,
+  EXPERTS_TEXT,
+  FINDINGS_TEXT,
+  OCCASIONS,
+  occasionOf,
+  parseBullets,
+  requiredProofsIntro,
+  requiredProofsOf,
+} from './control-fields.ts';
+import type { TextLine } from './control-fields.ts';
+import { initDateTile, showDate } from './date-tile.ts';
 import * as store from './db.ts';
 import { DEFAULT_REPORT_LEVELS, IMPORTANCE, IMPORTANCE_PLURAL, IMPORTANCE_TEXT, formatDate, todayIso } from './defects.ts';
-import { reportAddress, reportLogoUrl } from './divisions.ts';
+import { reportAddress, reportLogoUrl, reportRecipient } from './divisions.ts';
 import { openInspectionsDialog } from './inspections-dialog.ts';
 import { INFO_PAGE_PARTIES, PARTIES, createPartyFields } from './parties.ts';
 import { shrinkPhoto } from './photos.ts';
@@ -39,6 +52,18 @@ const coverInspectionLabel = document.getElementById('cover-inspection-label') a
 const photoPage = document.getElementById('cover-photo-page') as HTMLElement;
 const levelBtns = document.querySelectorAll<HTMLButtonElement>('#report-levels .seg-btn');
 const createBtn = document.getElementById('report-create') as HTMLButtonElement;
+const reportX = document.getElementById('report-x') as HTMLButtonElement;
+const occasionInput = document.getElementById('report-occasion') as HTMLInputElement;
+const occasionChips = document.getElementById('report-occasion-chips') as HTMLElement;
+const documentsInput = document.getElementById('report-documents') as HTMLTextAreaElement;
+const executionInput = document.getElementById('report-execution') as HTMLTextAreaElement;
+const proofsInput = document.getElementById('report-proofs') as HTMLTextAreaElement;
+const proofsReset = document.getElementById('report-proofs-reset') as HTMLButtonElement;
+const plansGrid = document.getElementById('report-plans') as HTMLElement;
+const controlSummary = document.getElementById('report-control-summary') as HTMLElement;
+const projectSummary = document.getElementById('report-project-summary') as HTMLElement;
+const imagesSummary = document.getElementById('report-images-summary') as HTMLElement;
+const coverControl = document.getElementById('cover-control') as HTMLElement;
 const coverDate = document.getElementById('cover-date') as HTMLElement;
 const coverDateLabel = document.getElementById('cover-date-label') as HTMLElement;
 const coverCreator = document.getElementById('cover-creator') as HTMLElement;
@@ -89,15 +114,25 @@ export async function openReportDialog(project: Project, plans: Plan[], pins: De
   for (const { key } of PARTIES) partyInputs[key].value = settings[key] ?? '';
   creatorInput.value = settings.creator;
   dateInput.value = todayIso(); // Das Datum gilt für diesen Bericht und wird nicht gemerkt
+  showDate(dateInput);
+  occasionInput.value = occasionOf(settings);
+  renderOccasionChips();
+  documentsInput.value = settings.documents ?? '';
+  executionInput.value = settings.executionState ?? '';
+  proofsInput.value = requiredProofsOf(settings);
+  renderPlans();
   formMessage.textContent = '';
   coverOffice.textContent = reportAddress(project.division);
   for (const key of Object.keys(images) as ImageKey[]) showImage(key);
   showInspectionCount();
   showLevels();
   renderCover();
+  showSummaries();
 
   showSection(formSection);
   dialog.hidden = false;
+  growing.forEach(grow);
+  formSection.scrollIntoView({ block: 'start' });
 }
 
 // Vorschau des Deckblatts: zeigt die Angaben so, wie drawCover und drawProjectInfo in report.ts sie setzen
@@ -140,6 +175,166 @@ function renderCover() {
 function lastInspectionDate() {
   return (current!.settings.inspections ?? []).map((inspection) => inspection.date).sort().at(-1);
 }
+
+// ---------- Zusammenfassungen in den Kopfzeilen der Abschnitte ----------
+
+function showSummaries() {
+  const { settings, plans } = current!;
+  const planCount = plans.filter((plan) => settings.inspectedPlanIds?.includes(plan.id)).length;
+  const control = [
+    occasionInput.value.trim() && 'Veranlassung',
+    documentsInput.value.trim() && 'Unterlagen',
+    planCount && (planCount === 1 ? '1 Gebäudeteil' : `${planCount} Gebäudeteile`),
+    executionInput.value.trim() && 'Ausführungsstand',
+  ].filter(Boolean);
+  controlSummary.textContent = control.length ? control.join(' · ') : 'Noch nichts eingetragen';
+  proofsReset.hidden = proofsInput.value === DEFAULT_REQUIRED_PROOFS;
+
+  const number = partyInputs.projectNumber.value.trim();
+  const parties = PARTIES.filter(({ key }) => key !== 'projectNumber' && partyInputs[key].value.trim()).length;
+  projectSummary.textContent = [
+    nameInput.value.trim() || current!.project.name,
+    number,
+    parties ? `${parties} ${parties === 1 ? 'Beteiligter' : 'Beteiligte'}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const logo = settings.logo === undefined ? 'Standardlogo' : settings.logo ? 'eigenes Logo' : 'ohne Logo';
+  imagesSummary.textContent = `${settings.coverPhoto ? 'Mit Titelbild' : 'Ohne Titelbild'} · ${logo}`;
+  renderControlPreview();
+}
+
+// Vorschau der Tabelle "Angaben zur Baukontrolle", Zeilen wie in drawControlTable (report.ts)
+function renderControlPreview() {
+  const { settings, plans, project } = current!;
+  const planNames = plans
+    .filter((plan) => settings.inspectedPlanIds?.includes(plan.id))
+    .map((plan) => ({ bullet: false, text: plan.name }));
+  const rows: [string, TextLine[][]][] = [
+    ['Veranlassung', [parseBullets(occasionInput.value)]],
+    ['Unterlagen', [parseBullets(documentsInput.value)]],
+    ['Begangene Gebäudeteile', [planNames]],
+    ['Ausführungsstand', [parseBullets(executionInput.value)]],
+    [
+      'Vorzulegende Unterlagen zur Durchführung der Baukontrollen',
+      [[{ bullet: false, text: requiredProofsIntro(reportRecipient(project.division)) }], parseBullets(proofsInput.value)],
+    ],
+    ['Vorzulegende Bescheinigungen von Sachverständigen nach PrüfVO NRW', [[{ bullet: false, text: EXPERTS_TEXT }]]],
+    ['Abnahmebefund', [[{ bullet: false, text: FINDINGS_TEXT }]]],
+  ];
+  coverControl.replaceChildren(
+    ...rows
+      .filter(([, blocks]) => blocks.some((block) => block.length))
+      .flatMap(([label, blocks]) => {
+        const dt = document.createElement('div');
+        dt.className = 'control-label';
+        dt.textContent = label;
+        const dd = document.createElement('div');
+        dd.className = 'control-value';
+        for (const block of blocks.filter((b) => b.length)) {
+          let list: HTMLUListElement | null = null;
+          for (const line of block) {
+            if (line.bullet) {
+              if (!list) dd.append((list = document.createElement('ul')));
+              const li = document.createElement('li');
+              li.textContent = line.text;
+              list.append(li);
+            } else {
+              list = null;
+              const p = document.createElement('p');
+              p.textContent = line.text;
+              dd.append(p);
+            }
+          }
+        }
+        return [dt, dd];
+      })
+  );
+}
+
+// ---------- Angaben zur Baukontrolle ----------
+
+// Begangene Gebäudeteile: die Pläne des Projekts als Kacheln, mehrere wählbar
+function renderPlans() {
+  const { plans, settings } = current!;
+  if (!plans.length) {
+    const empty = document.createElement('div');
+    empty.className = 'list-empty';
+    empty.textContent = 'Das Projekt hat noch keine Pläne.';
+    plansGrid.replaceChildren(empty);
+    return;
+  }
+  plansGrid.replaceChildren(
+    ...plans.map((plan) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'choice';
+      btn.textContent = plan.name;
+      const selected = settings.inspectedPlanIds?.includes(plan.id) ?? false;
+      btn.classList.toggle('selected', selected);
+      btn.setAttribute('aria-pressed', String(selected));
+      btn.addEventListener('click', () => {
+        const ids = settings.inspectedPlanIds ?? [];
+        remember({ inspectedPlanIds: ids.includes(plan.id) ? ids.filter((id) => id !== plan.id) : [...ids, plan.id] });
+        renderPlans();
+        showSummaries();
+      });
+      return btn;
+    })
+  );
+}
+
+// Vorschläge für die Veranlassung, ohne den, der schon im Feld steht
+function renderOccasionChips() {
+  occasionChips.replaceChildren(
+    ...OCCASIONS.filter((text) => text !== occasionInput.value.trim()).map(createOccasionChip)
+  );
+}
+
+function createOccasionChip(text: string) {
+  const chip = document.createElement('button');
+  chip.type = 'button';
+  chip.className = 'btn soft suggestion';
+  chip.textContent = text;
+  chip.addEventListener('click', () => {
+    occasionInput.value = text;
+    occasionInput.dispatchEvent(new Event('input'));
+  });
+  return chip;
+}
+occasionInput.addEventListener('input', renderOccasionChips);
+
+const controlFields: [HTMLInputElement | HTMLTextAreaElement, 'occasion' | 'documents' | 'executionState' | 'requiredProofs'][] = [
+  [occasionInput, 'occasion'],
+  [documentsInput, 'documents'],
+  [executionInput, 'executionState'],
+  [proofsInput, 'requiredProofs'],
+];
+for (const [input, key] of controlFields) {
+  input.addEventListener('input', () => {
+    remember({ [key]: input.value });
+    showSummaries();
+  });
+}
+// Die Textfelder wachsen mit ihrem Inhalt, statt selbst zu rollen. Im zugeklappten Abschnitt haben sie
+// keine Höhe, darum auch beim Aufklappen.
+const growing = [documentsInput, executionInput, proofsInput];
+function grow(textarea: HTMLTextAreaElement) {
+  textarea.style.height = 'auto';
+  if (textarea.scrollHeight) textarea.style.height = `${textarea.scrollHeight + 2}px`;
+}
+for (const textarea of growing) textarea.addEventListener('input', () => grow(textarea));
+document.getElementById('report-control')!.addEventListener('toggle', () => growing.forEach(grow));
+
+initBulletField(documentsInput, document.getElementById('report-documents-bullet') as HTMLButtonElement);
+initBulletField(proofsInput, document.getElementById('report-proofs-bullet') as HTMLButtonElement);
+proofsReset.addEventListener('click', () => {
+  proofsInput.value = DEFAULT_REQUIRED_PROOFS;
+  grow(proofsInput);
+  remember({ requiredProofs: undefined });
+  showSummaries();
+});
 
 // ---------- Welche Punkttypen in den Bericht kommen ----------
 
@@ -195,6 +390,7 @@ document.getElementById('report-inspections-btn')!.addEventListener('click', () 
 
 function showSection(section: HTMLElement) {
   for (const s of [formSection, progressSection, doneSection]) s.hidden = s !== section;
+  reportX.hidden = section === progressSection; // während der Bericht entsteht, nur "Abbrechen"
 }
 
 function closeDialog() {
@@ -219,6 +415,7 @@ nameInput.addEventListener('input', () => {
   const name = nameInput.value.trim();
   remember({ name: name === current!.project.name ? '' : name });
   renderCover();
+  showSummaries();
 });
 addressInput.addEventListener('input', () => {
   remember({ address: addressInput.value });
@@ -228,13 +425,20 @@ for (const { key } of PARTIES) {
   partyInputs[key].addEventListener('input', () => {
     remember({ [key]: partyInputs[key].value });
     renderCover();
+    showSummaries();
   });
 }
 creatorInput.addEventListener('input', () => {
   remember({ creator: creatorInput.value });
   renderCover();
 });
-dateInput.addEventListener('input', renderCover);
+initDateTile(dateInput, { clearable: false });
+dateInput.addEventListener('input', () => {
+  // Ein Datum muss sein: Wird es geleert, gilt wieder heute
+  if (!dateInput.value) dateInput.value = todayIso();
+  showDate(dateInput);
+  renderCover();
+});
 
 for (const [key, { prefix, maxSide, quality }] of Object.entries(images) as [ImageKey, ImageSlot][]) {
   const input = document.getElementById(`${prefix}-input`) as HTMLInputElement;
@@ -292,11 +496,13 @@ function showImage(key: ImageKey, clearOnly: boolean = false) {
     preview.src = src;
     cover.src = src;
   }
+  showSummaries();
 }
 
 // ---------- Erstellen ----------
 
 document.getElementById('report-close')!.addEventListener('click', closeDialog);
+reportX.addEventListener('click', closeDialog);
 document.getElementById('report-done-close')!.addEventListener('click', closeDialog);
 // Während der Bericht entsteht, bleibt das Fenster offen (dort gibt es nur "Abbrechen")
 closeOnOutsideTap(dialog, () => clickVisible('report-close', 'report-done-close'));

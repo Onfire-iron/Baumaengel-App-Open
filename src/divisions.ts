@@ -14,9 +14,13 @@ export interface Division {
   reportLogo: string; // Standardlogo im Bericht, Pfad in public/
   headerLogo: string; // Logo oben links auf der Startseite, mit durchsichtigem Hintergrund
   address: string; // steht im Bericht auf dem Deckblatt unter dem Logo
+  recipient: string; // im Bericht "... sind <recipient> in Kopie zuzusenden" (Dativ), siehe control-fields.ts
 }
 
-// Platzhalter: die Adresse des eigenen Büros eintragen
+// Platzhalter: Empfänger im Dativ ("... sind <Empfänger> in Kopie zu übermitteln") und Adresse des
+// eigenen Büros eintragen
+const RECIPIENT = 'der Musterfirma GmbH';
+
 const OFFICE_ADDRESS = 'Musterstraße 1, 12345 Musterstadt';
 
 export const DIVISIONS: readonly Division[] = [
@@ -27,6 +31,7 @@ export const DIVISIONS: readonly Division[] = [
     reportLogo: 'bereiche/arbeitsplatz-1.png',
     headerLogo: 'bereiche/arbeitsplatz-1-leiste.png',
     address: OFFICE_ADDRESS,
+    recipient: RECIPIENT,
   },
   {
     id: 'arbeitsplatz-2',
@@ -34,6 +39,7 @@ export const DIVISIONS: readonly Division[] = [
     reportLogo: 'bereiche/arbeitsplatz-2.png',
     headerLogo: 'bereiche/arbeitsplatz-2-leiste.png',
     address: OFFICE_ADDRESS,
+    recipient: RECIPIENT,
   },
   {
     id: 'arbeitsplatz-3',
@@ -41,6 +47,7 @@ export const DIVISIONS: readonly Division[] = [
     reportLogo: 'bereiche/arbeitsplatz-3.png',
     headerLogo: 'bereiche/arbeitsplatz-3-leiste.png',
     address: OFFICE_ADDRESS,
+    recipient: RECIPIENT,
   },
 ];
 
@@ -72,6 +79,10 @@ export function reportLogoUrl(id: string | null | undefined): string {
 // Adresse unter dem Logo auf dem Deckblatt. Ohne Bereich wie beim Logo: die des ersten Bereichs.
 export function reportAddress(id: string | null | undefined): string {
   return (findDivision(id) ?? DIVISIONS[0]).address;
+}
+
+export function reportRecipient(id: string | null | undefined): string {
+  return (findDivision(id) ?? DIVISIONS[0]).recipient;
 }
 
 // ---------- Gewählter Bereich, gilt nur auf diesem Gerät (wie das Profil) ----------

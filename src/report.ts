@@ -3,7 +3,8 @@
 // =============================================================
 //
 // Aufbau: Deckblatt mit den Projektangaben (Beteiligte, Begehungs- und Erstellungsdatum usw.), auf
-// Seite 2 das Titelbild (nur wenn eines gewählt ist), Teilnehmer der Begehungen, Legende mit
+// Seite 2 das Titelbild (nur wenn eines gewählt ist), danach die Angaben zur Baukontrolle (Tabelle,
+// control-fields.ts), Teilnehmer der Begehungen, Legende mit
 // Mängeltabelle, je Plan ein Übersichtsplan, je Mangel eine Seite (Planausschnitt, Text, Fotos).
 // Tabelle und Mängelseiten sind nach Nummer sortiert, erledigte Mängel folgen am Ende in einem eigenen
 // Abschnitt. Es kommen nur die gewählten Punkttypen hinein (levels, z. B. ohne Intern).
@@ -31,7 +32,16 @@ import type { Color, PDFFont, PDFImage, PDFPage } from 'pdf-lib';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import * as store from './db.ts';
 import { IMPORTANCE, IMPORTANCE_TEXT, formatDate, isOverdue, sortForReport } from './defects.ts';
-import { reportAddress, reportLogoUrl } from './divisions.ts';
+import {
+  EXPERTS_TEXT,
+  FINDINGS_TEXT,
+  occasionOf,
+  parseBullets,
+  requiredProofsIntro,
+  requiredProofsOf,
+} from './control-fields.ts';
+import type { TextLine } from './control-fields.ts';
+import { reportAddress, reportLogoUrl, reportRecipient } from './divisions.ts';
 import { googleMapsUrl } from './maps.ts';
 import { INFO_PAGE_PARTIES } from './parties.ts';
 import { openPdf } from './pdf.ts';
@@ -187,6 +197,7 @@ export async function buildReport({
     await step('Deckblatt wird erstellt …');
     drawCover(r, name, settings, dateText);
     await drawCoverPhoto(r, settings);
+    drawControlTable(r, settings, plans, reportRecipient(project.division));
     drawInspections(r, settings.inspections ?? []);
     drawLegend(r, plans, pins, levels);
     let doneSectionDrawn = false;
@@ -669,6 +680,100 @@ async function drawCoverPhoto(r: ReportContext, settings: Partial<ReportSettings
   const size = fit(photo.width, photo.height, CONTENT_W, top - bottom);
   // oben bündig, waagerecht in der Mitte
   page.drawImage(photo, { x: MARGIN + (CONTENT_W - size.width) / 2, y: top - size.height, ...size });
+}
+
+// =============================================================
+// Angaben zur Baukontrolle
+// =============================================================
+
+// Tabelle wie im bisherigen Bericht der Firma: links die Bezeichnung, rechts Absätze und
+// Aufzählungspunkte (blaue Quadrate). Leere Eingaben fallen weg, die festen Texte stehen immer da.
+// Eine lange Zeile wird zeilenweise auf die nächste Seite fortgesetzt.
+function drawControlTable(r: ReportContext, settings: Partial<ReportSettings>, plans: Plan[], recipient: string) {
+  const SIZE = 10.5;
+  const LINE = 14;
+  const PAD = 7;
+  const LABEL_W = 150;
+  const VALUE_X = MARGIN + LABEL_W + 10;
+  const VALUE_W = PAGE_W - MARGIN - VALUE_X;
+  const BULLET_INDENT = 14;
+  const SEPARATOR = rgb(0.6, 0.66, 0.74);
+
+  const planNames = plans
+    .filter((plan) => settings.inspectedPlanIds?.includes(plan.id))
+    .map((plan) => ({ bullet: false, text: plan.name }));
+  const rows: { label: string; blocks: TextLine[][] }[] = [
+    { label: 'Veranlassung', blocks: [parseBullets(occasionOf(settings))] },
+    { label: 'Unterlagen', blocks: [parseBullets(settings.documents)] },
+    { label: 'Begangene Gebäudeteile', blocks: [planNames] },
+    { label: 'Ausführungsstand', blocks: [parseBullets(settings.executionState)] },
+    {
+      label: 'Vorzulegende Unterlagen zur Durchführung der Baukontrollen',
+      blocks: [[{ bullet: false, text: requiredProofsIntro(recipient) }], parseBullets(requiredProofsOf(settings))],
+    },
+    { label: 'Vorzulegende Bescheinigungen von Sachverständigen nach PrüfVO NRW', blocks: [[{ bullet: false, text: EXPERTS_TEXT }]] },
+    { label: 'Abnahmebefund', blocks: [[{ bullet: false, text: FINDINGS_TEXT }]] },
+  ].filter((row) => row.blocks.some((block) => block.length));
+
+  let page = addPage(r);
+  let y = drawHeading(r, page, 'Angaben zur Baukontrolle') - 8;
+
+  for (const row of rows) {
+    // Alle Zeilen des Werts mit ihrer Einrückung, zwischen den Blöcken etwas Abstand
+    const lines: { text: string; x: number; bullet: boolean; gap: number }[] = [];
+    row.blocks
+      .filter((block) => block.length)
+      .forEach((block, blockIndex) => {
+        block.forEach((item, itemIndex) => {
+          const indent = item.bullet ? BULLET_INDENT : 0;
+          wrapText(r, item.text, r.regular, SIZE, VALUE_W - indent).forEach((text, i) =>
+            lines.push({ text, x: VALUE_X + indent, bullet: item.bullet && i === 0, gap: i === 0 && blockIndex > 0 && itemIndex === 0 ? 6 : 0 })
+          );
+        });
+      });
+    const labelLines = wrapText(r, row.label, r.regular, SIZE, LABEL_W);
+    const height = PAD * 2 + Math.max(labelLines.length, lines.length) * LINE + lines.reduce((sum, l) => sum + l.gap, 0);
+
+    // Passt die Zeile nicht mehr, aber auf eine neue Seite: ganz auf die nächste
+    const room = r.top - 16 - 8 - BOTTOM;
+    if (y - height < BOTTOM && height <= room) {
+      page = addPage(r);
+      y = drawHeading(r, page, 'Angaben zur Baukontrolle (Fortsetzung)') - 8;
+    }
+
+    let rowTop = y;
+    const closeRow = () => {
+      page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 0.6, color: SEPARATOR });
+      page.drawLine({ start: { x: VALUE_X - 6, y: rowTop }, end: { x: VALUE_X - 6, y }, thickness: 0.6, color: SEPARATOR });
+    };
+
+    // lineY ist die Grundlinie der nächsten Zeile. Unter der letzten Grundlinie folgen noch 3 pt
+    // Unterlänge und der Innenabstand, so ist die Zeile oben und unten gleich gepolstert.
+    const below = (baseline: number) => baseline - 3 - PAD;
+    let lineY = y - PAD - SIZE + 1;
+    labelLines.forEach((line, i) => drawText(r, page, line, MARGIN, lineY - i * LINE, { size: SIZE }));
+    let lowest = lineY - (labelLines.length - 1) * LINE; // tiefste Grundlinie auf dieser Seite
+    for (const line of lines) {
+      lineY -= line.gap;
+      if (below(lineY) < BOTTOM) {
+        y = below(lineY + LINE);
+        closeRow();
+        page = addPage(r);
+        y = drawHeading(r, page, 'Angaben zur Baukontrolle (Fortsetzung)') - 8;
+        rowTop = y;
+        lineY = y - PAD - SIZE + 1;
+        lowest = lineY;
+      }
+      if (line.bullet) {
+        page.drawRectangle({ x: line.x - BULLET_INDENT + 2, y: lineY + 1.5, width: 4, height: 4, color: COLOR.brand });
+      }
+      drawText(r, page, line.text, line.x, lineY, { size: SIZE });
+      lowest = Math.min(lowest, lineY);
+      lineY -= LINE;
+    }
+    y = below(lowest);
+    closeRow();
+  }
 }
 
 // =============================================================

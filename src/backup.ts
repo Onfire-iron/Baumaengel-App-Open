@@ -42,6 +42,9 @@ import type {
 
 type ProgressCallback = (text: string) => void;
 
+// Textfelder der Angaben zur Baukontrolle (die begangenen Pläne kommen getrennt, ihre ids ändern sich)
+const CONTROL_TEXT_KEYS = ['occasion', 'documents', 'executionState', 'requiredProofs'] as const;
+
 const FORMAT = 'baumaengel-backup';
 // 2: Wichtigkeit und "Erledigt" statt Status
 // 3: feste Nummern, Gewerk, Firma, Termine, Bildunterschrift, Markierungen, Textbausteine
@@ -51,7 +54,8 @@ const FORMAT = 'baumaengel-backup';
 // 7: Begehungen im Teil "report", siehe inspections.ts
 // 8: Stufen Mangel, Hinweis, Intern statt Wichtig, Relevant, Hinweis (ältere werden umgesetzt,
 //    siehe readMarking) und die Gewerke-Liste
-const VERSION = 8;
+// 9: Angaben zur Baukontrolle im Teil "report", siehe control-fields.ts
+const VERSION = 9;
 
 const COLLECTION_FORMAT = 'baumaengel-sammelbackup';
 const COLLECTION_VERSION = 1;
@@ -202,6 +206,8 @@ async function writeProject(
     backup.report = { name: settings.name, address: settings.address, creator: settings.creator } as BackupReport;
     for (const { key } of PARTIES) if (settings[key]) backup.report[key] = settings[key];
     if (settings.inspections?.length) backup.report.inspections = settings.inspections;
+    for (const key of CONTROL_TEXT_KEYS) if (settings[key] !== undefined) backup.report[key] = settings[key];
+    if (settings.inspectedPlanIds?.length) backup.report.inspectedPlanIds = settings.inspectedPlanIds;
     if (settings.coverPhoto) {
       backup.report.coverPhoto = 'bericht/titelbild.jpg';
       await addBytes(backup.report.coverPhoto as string, settings.coverPhoto);
@@ -382,6 +388,13 @@ async function importProjectFrom(entries: Entries, folder: string, onProgress?: 
         ...Object.fromEntries(PARTIES.map(({ key }) => [key, String(report[key] ?? '')])),
         creator: String(backup.report.creator ?? ''),
         inspections: readInspections(report.inspections),
+        // Angaben zur Baukontrolle gibt es erst seit Version 9. Fehlt eine, gilt die Vorgabe.
+        ...Object.fromEntries(
+          CONTROL_TEXT_KEYS.filter((key) => typeof report[key] === 'string').map((key) => [key, report[key]])
+        ),
+        inspectedPlanIds: Array.isArray(report.inspectedPlanIds)
+          ? report.inspectedPlanIds.filter((id) => planIds.has(id)).map((id) => planIds.get(id)!)
+          : [],
         coverPhoto: backup.report.coverPhoto ? await readBytes(backup.report.coverPhoto) : null,
         logo: backup.report.logo ? await readBytes(backup.report.logo) : (backup.report.logo as null | undefined),
       });

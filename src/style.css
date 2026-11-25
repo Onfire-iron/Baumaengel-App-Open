@@ -2298,19 +2298,6 @@ textarea.in {
   display: none;
 }
 
-.report-inspections {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  margin-bottom: 14px;
-  color: var(--muted);
-}
-
-.report-inspections span {
-  flex: 1 1 200px;
-}
-
 /* ---------- Profile ---------- */
 .profile-pick.active {
   color: var(--brand);
@@ -2369,8 +2356,173 @@ textarea.in {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: 20px 24px 22px;
+  padding: 16px 24px 0;
   touch-action: pan-y;
+}
+
+/* ---------- Berichtsfenster: Aufbau wie "Alle Details" ---------- */
+.report-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.report-head h2 {
+  margin: 0;
+}
+
+.report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-main > section:not(.report-form) {
+  padding-bottom: 22px;
+}
+
+.block-label {
+  display: block;
+  margin: 4px 4px 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 550;
+}
+
+.block-hint {
+  margin: 8px 4px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* Aufklappbarer Abschnitt: Kopfzeile wie eine Kachel, darunter die Felder */
+.report-section {
+  border-radius: 18px;
+  background: var(--well);
+}
+
+.report-section > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 14px 10px 12px;
+  border-radius: 18px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.report-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-section > summary:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.section-title {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.section-summary {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-chevron {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+
+.report-section[open] .section-chevron {
+  transform: rotate(180deg);
+}
+
+.report-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 14px 16px;
+}
+
+.report-section-body .field {
+  margin-bottom: 0;
+}
+
+/* Auf der eingelassenen Fläche heben sich die Felder hell ab */
+.report-section-body .field input,
+.report-section-body .field textarea,
+.report-section-body .choice,
+.report-section-body .suggestion {
+  background: var(--surface);
+}
+
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bullet-btn {
+  min-height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.field-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 450;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: -6px;
+}
+
+.suggestions:empty {
+  display: none;
+}
+
+.suggestion {
+  min-height: 38px;
+  font-size: 14px;
+}
+
+/* Begangene Gebäudeteile: Kacheln wie im Gewerke-Fenster, hier ohne eigenen Rollbereich */
+.plan-choices {
+  overflow: visible;
+  margin: 8px 0 0;
+  padding: 0;
+  color: var(--text);
+}
+
+/* Unten immer erreichbar: Schließen und Bericht erstellen */
+.report-actions {
+  position: sticky;
+  bottom: 0;
+  margin: 4px -24px 0;
+  padding: 12px 24px 18px;
+  background: var(--glass-thick);
+  -webkit-backdrop-filter: blur(var(--blur));
+  backdrop-filter: blur(var(--blur));
 }
 
 .report-image {
@@ -2856,7 +3008,50 @@ textarea.in {
   font-size: 14px;
 }
 
-.report-levels-hint {
-  margin: 8px 4px 16px;
-  font-size: 13px;
+/* Vorschau: Angaben zur Baukontrolle, oben bleibt Platz für die Kopfzeile */
+.control-page {
+  padding-top: 52px;
+}
+
+.control-table {
+  display: grid;
+  grid-template-columns: 34% minmax(0, 1fr);
+  margin-top: 8px;
+  font-size: 6.6px; /* 10,5 pt im Bericht, auf die Breite der Vorschau verkleinert */
+  line-height: 1.33;
+}
+
+.control-label,
+.control-value {
+  padding: 3.5px 0;
+  border-bottom: 1px solid #99a8bd;
+  overflow-wrap: anywhere;
+}
+
+.control-label {
+  padding-right: 6px;
+}
+
+.control-value {
+  padding-left: 6px;
+  border-left: 1px solid #99a8bd;
+}
+
+.control-value p,
+.control-value ul {
+  margin: 0;
+}
+
+.control-value ul {
+  padding-left: 10px;
+  list-style: square;
+}
+
+.control-value ul + p,
+.control-value p + ul {
+  margin-top: 2px;
+}
+
+.control-value li::marker {
+  color: #3a3591;
 }
