@@ -9,6 +9,7 @@
 import * as store from './db.ts';
 import { setStatus } from './status.ts';
 import type { Profile } from './types.ts';
+import { closeOnOutsideTap } from './outside-tap.ts';
 
 const KEY = 'baumaengel-profile';
 
@@ -154,6 +155,7 @@ input.addEventListener('keydown', (e) => {
 });
 addBtn.addEventListener('click', addProfile);
 document.getElementById('profile-close')!.addEventListener('click', closeDialog);
+closeOnOutsideTap(dialog, closeDialog);
 
 function showProfiles() {
   openProfiles().catch((err) => {

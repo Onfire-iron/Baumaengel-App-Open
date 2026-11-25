@@ -13,6 +13,7 @@ import { formatDate, todayIso } from './defects.ts';
 import { cleanParticipants, sortInspections } from './inspections.ts';
 import { activeProfileName } from './profiles.ts';
 import type { Inspection, Participant, Project } from './types.ts';
+import { closeOnOutsideTap } from './outside-tap.ts';
 
 const dialog = document.getElementById('inspections-dialog') as HTMLElement;
 const listView = document.getElementById('inspections-list-view') as HTMLElement;
@@ -232,3 +233,8 @@ document.getElementById('inspection-delete')!.addEventListener('click', () => {
 document.getElementById('inspection-done')!.addEventListener('click', finishInspection);
 document.getElementById('inspection-new')!.addEventListener('click', newInspection);
 document.getElementById('inspections-close')!.addEventListener('click', closeDialog);
+// Daneben tippen schließt das ganze Fenster, eine offene Begehung wird vorher wie mit "Fertig" abgeschlossen
+closeOnOutsideTap(dialog, () => {
+  if (current?.editing) finishInspection();
+  closeDialog();
+});

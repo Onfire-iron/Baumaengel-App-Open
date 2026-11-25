@@ -11,6 +11,7 @@ import { shrinkPhoto } from './photos.ts';
 import { activeProfileName } from './profiles.ts';
 import { saveFile, safeFileName } from './share.ts';
 import type { Defect, Plan, Project, ReportSettings } from './types.ts';
+import { clickVisible, closeOnOutsideTap } from './outside-tap.ts';
 
 const dialog = document.getElementById('report-dialog') as HTMLElement;
 const formSection = document.getElementById('report-form') as HTMLElement;
@@ -246,6 +247,8 @@ function showImage(key: ImageKey, clearOnly: boolean = false) {
 
 document.getElementById('report-close')!.addEventListener('click', closeDialog);
 document.getElementById('report-done-close')!.addEventListener('click', closeDialog);
+// Während der Bericht entsteht, bleibt das Fenster offen (dort gibt es nur "Abbrechen")
+closeOnOutsideTap(dialog, () => clickVisible('report-close', 'report-done-close'));
 document.getElementById('report-cancel')!.addEventListener('click', () => abortController?.abort());
 
 document.getElementById('report-create')!.addEventListener('click', async () => {

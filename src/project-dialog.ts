@@ -9,6 +9,7 @@ import * as store from './db.ts';
 import { DIVISIONS, NO_DIVISION, activeDivision } from './divisions.ts';
 import { PARTIES, createPartyFields } from './parties.ts';
 import type { Project } from './types.ts';
+import { closeOnOutsideTap } from './outside-tap.ts';
 
 interface Saved {
   id: number;
@@ -60,8 +61,15 @@ export async function openProjectDialog(project: Project | null, onSaved: (saved
   divisionInput.value = (project ? project.division : activeDivision()) ?? '';
   message.textContent = '';
   updateButton();
+  initialState = currentState();
   dialog.hidden = false;
   if (!project) nameInput.focus();
+}
+
+// Alles, was im Fenster steht, zum Erkennen von Änderungen (siehe Tippen neben das Fenster)
+let initialState = '';
+function currentState() {
+  return JSON.stringify([nameInput.value.trim(), divisionInput.value, readDetails()]);
 }
 
 function closeDialog() {
@@ -110,3 +118,9 @@ nameInput.addEventListener('keydown', (e) => {
 });
 saveBtn.addEventListener('click', save);
 document.getElementById('project-dialog-cancel')!.addEventListener('click', closeDialog);
+// Daneben tippen schließt wie "Abbrechen". Wurde etwas eingetragen, erst nachfragen, damit es nicht
+// durch einen Fehltipper verloren geht.
+closeOnOutsideTap(dialog, () => {
+  if (currentState() !== initialState && !confirm('Fenster schließen? Die Eingaben werden nicht gespeichert.')) return;
+  closeDialog();
+});

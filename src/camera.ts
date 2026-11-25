@@ -6,6 +6,8 @@
 // ignorieren das und zeigen nur die Dateiauswahl. Dort öffnet die App deshalb ein eigenes
 // Fenster mit Live-Bild der eingebauten Kamera (getUserMedia). Geht nur über https oder localhost.
 
+import { closeOnOutsideTap } from './outside-tap.ts';
+
 const dialog = document.getElementById('camera-dialog') as HTMLElement;
 const video = document.getElementById('camera-video') as HTMLVideoElement;
 const message = document.getElementById('camera-message') as HTMLElement;
@@ -153,6 +155,7 @@ shootBtn.addEventListener('click', () => {
 select.addEventListener('change', () => start(select.value));
 retryBtn.addEventListener('click', () => start(select.value || null));
 document.getElementById('camera-cancel')!.addEventListener('click', close);
+closeOnOutsideTap(dialog, close);
 fileBtn.addEventListener('click', () => {
   close();
   handleFile();

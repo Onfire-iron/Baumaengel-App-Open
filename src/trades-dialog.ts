@@ -9,6 +9,7 @@
 import * as store from './db.ts';
 import { normalize, searchWords } from './search.ts';
 import type { Trade } from './types.ts';
+import { closeOnOutsideTap } from './outside-tap.ts';
 
 const dialog = document.getElementById('trades-dialog') as HTMLElement;
 const search = document.getElementById('trades-search') as HTMLInputElement;
@@ -147,9 +148,7 @@ clearBtn.addEventListener('click', () => choose(''));
 document.getElementById('trades-close')!.addEventListener('click', close);
 
 // Tippen neben das Fenster schließt es, Escape auch
-dialog.addEventListener('click', (e) => {
-  if (e.target === dialog) close();
-});
+closeOnOutsideTap(dialog, close);
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !dialog.hidden) close();
 });

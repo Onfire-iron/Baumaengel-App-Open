@@ -202,6 +202,7 @@ src/
   native.ts           nur in der Android-App: Kamera mit Galerie-Album, Speichern in Documents, Links
   text-blocks.ts      Fenster "Textbausteine" (vorerst Platzhalter)
   trades-dialog.ts    Fenster "Gewerk wählen": Gewerke-Liste mit Suche, Ergänzen, Löschen
+  outside-tap.ts      Tippen neben ein Fenster schließt es (wie sein Schließen-Knopf)
   search.ts           gemeinsame Suchregeln für Projektsuche und Mängelliste
   menu.ts, share.ts, status.ts, theme.ts   Menüs, Datei herausgeben, Meldungen, Darstellung
   style.css           alle Styles
@@ -340,6 +341,11 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
   `showPicker()`. "×" oben rechts leert das Datum. Die Kachel "Textbaustein" öffnet vorerst nur einen
   Platzhalter; die Bausteine nach Kategorien kommen später. Die alten Bausteine bleiben in Datenbank und
   Backup, sind aber derzeit nicht auswählbar.
+- **Daneben tippen schließt:** Bei allen Fenstern mit abgedunkeltem Hintergrund wirkt ein Tipp auf die
+  dunkle Fläche wie der Schließen-Knopf (`outside-tap.ts`), nur wenn der Finger auch dort aufgesetzt hat.
+  Ausnahmen: Während der Bericht entsteht, bleibt das Fenster offen. Im Projektfenster wird bei
+  geänderten Eingaben erst nachgefragt. Eine offene Begehung wird vorher wie mit "Fertig" abgeschlossen.
+  Bearbeitungsfenster, Schnellerfassung und Mängelliste schließt ein Tipp auf eine freie Stelle im Plan.
 - **Sperre der Punkte:** Gesetzte Punkte lassen sich nicht einfach ziehen (sonst verrutschen sie bei
   einem Vertipper auf der Baustelle). Zum Verschieben im Bearbeitungsfenster "Verschieben" einschalten.
   Die Freigabe gilt nur für diesen einen Punkt und endet, sobald er abgewählt wird. Ein gerade neu

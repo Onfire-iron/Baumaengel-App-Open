@@ -961,7 +961,9 @@ function endPointer(e: PointerEvent) {
     } else if (placing) {
       addPin(e.clientX, e.clientY);
     } else {
+      // Tippen auf eine freie Stelle schließt die offenen Seitenfenster (siehe outside-tap.ts)
       selectPin(null);
+      closeList();
     }
   }
 
