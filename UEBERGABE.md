@@ -202,6 +202,8 @@ src/
   native.ts           nur in der Android-App: Kamera mit Galerie-Album, Speichern in Documents, Links
   text-blocks.ts      Fenster "Textbausteine" (vorerst Platzhalter)
   trades-dialog.ts    Fenster "Gewerk wählen": Gewerke-Liste mit Suche, Ergänzen, Löschen
+  master-entries.ts   Stammdaten: Aufbau der Einträge, Vorgaben, feste Kennungen
+  master-data.ts      Stammdaten als Datei: "Listen sichern" / "Listen einlesen"
   outside-tap.ts      Tippen neben ein Fenster schließt es (wie sein Schließen-Knopf)
   control-fields.ts   Angaben zur Baukontrolle: Vorgaben, feste Texte, Aufzählungen erkennen
   bullet-field.ts     Textfeld mit Aufzählungspunkten ("• Aufzählung", Enter setzt fort)
@@ -227,7 +229,7 @@ src/
 
 ## Regeln für gespeicherte Daten
 
-**Datenbank (`db.ts`):** Der Name ist `baumaengel`, aktuell gilt Version 9.
+**Datenbank (`db.ts`):** Der Name ist `baumaengel`, aktuell gilt Version 10.
 
 - Bestehende `db.version(...)`-Blöcke nie ändern. Änderungen kommen als neue Version mit `.upgrade(...)`.
 - Geänderte Felder auch in `types.ts` nachziehen.
@@ -332,8 +334,16 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
   Reihenfolge. Vorher Wichtig/Relevant/Hinweis: DB-Version 9 und `readMarking` setzen Wichtig auf Mangel
   und Relevant auf Intern um (gleiche Form). Im Code heißt das Feld weiter `importance`, im Bericht
   die Spalte "Art". Welche Stufen in den Bericht kommen, wird beim Erstellen gewählt (siehe Bericht).
+- **Stammdaten (seit 4.29):** Listen für alle Projekte liegen in der Tabelle `masterData` (DB-Version 10),
+  bisher nur die Gewerke (`kind: 'trade'`), später Kontakte, Textbausteine usw. Jeder Eintrag hat eine feste
+  `uid`, `updatedAt` und beim Löschen `deleted: true` statt Entfernen, damit sich Geräte abgleichen können
+  (heute per Datei, später SharePoint). Vorgaben haben feste uids aus ihrem Namen (`vorgabe:trade:dach`),
+  damit sie auf zwei Geräten nicht doppelt entstehen. Zusammenführen in `mergeMaster`: unbekannte uid kommt
+  dazu (außer der Name ist schon da), sonst gilt die neuere Fassung. Grenze: Legen zwei Geräte denselben
+  Namen getrennt an, behält jedes seine uid; ein späteres Löschen gilt dann nur für die eigene.
+  Startseite, Menü (Sonne): "Listen sichern" / "Listen einlesen" (JSON, `master-data.ts`).
 - **Gewerke-Liste (seit 4.24):** Die Kachel "Gewerk" öffnet das Fenster "Gewerk wählen" (`trades-dialog.ts`)
-  mit Kacheln aus der Tabelle `trades` (für alle Projekte, anfangs `TRADES` aus `defects.ts`). Tippen
+  mit Kacheln aus den Stammdaten (seit 4.29, vorher Tabelle `trades`; anfangs `TRADES` aus `defects.ts`). Tippen
   wählt, Suchen filtert, ein neuer Name lässt sich direkt hinzufügen, "Bearbeiten" löscht Einträge
   (Mängel behalten ihr Gewerk). Die Liste kommt ins Backup und wird beim Import ergänzt. Erster Test für
   die geplanten Auswahlfenster für Firmen und Namen.

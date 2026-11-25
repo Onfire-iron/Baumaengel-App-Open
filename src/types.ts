@@ -89,10 +89,15 @@ export interface TextBlock {
   text: string;
 }
 
-// Eintrag in der Gewerke-Liste (für alle Projekte), siehe trades-dialog.ts
-export interface Trade {
-  id: number;
+// Stammdaten: Einträge der Listen für alle Projekte, siehe master-entries.ts
+export type MasterKind = 'trade'; // später auch Kontakte, Textbausteine …
+
+export interface MasterEntry {
+  uid: string; // feste Kennung, auf allen Geräten gleich
+  kind: MasterKind;
   name: string;
+  updatedAt: number; // Zeitstempel in Millisekunden, die neuere Fassung gilt
+  deleted: boolean; // Lösch-Vermerk statt Entfernen
 }
 
 // Begehung: wer an welchem Tag dabei war, siehe inspections.ts

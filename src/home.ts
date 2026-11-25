@@ -7,6 +7,7 @@ import { backupReminder, exportAllProjects, exportProject, importBackup } from '
 import type { BackupContents, ImportResult } from './backup.ts';
 import { IMPORTANCE, IMPORTANCE_PLURAL, IMPORTANCE_TEXT } from './defects.ts';
 import { DIVISIONS, NO_DIVISION, activeDivision, assetUrl, divisionName, findDivision, setActiveDivision } from './divisions.ts';
+import { exportMasterData, importMasterData } from './master-data.ts';
 import { bindMenu } from './menu.ts';
 import { getPlanThumb } from './plan-thumb.ts';
 import { openProjectDialog } from './project-dialog.ts';
@@ -46,6 +47,47 @@ let projectCount = 0; // alle Projekte, auch die anderer Bereiche ("Alle sichern
 const noMatch = createNoMatch();
 
 bindMenu(document.getElementById('home-menu-btn')!, document.getElementById('home-menu')!);
+
+// ---------- Listen für alle Projekte (Gewerke usw.) als Datei, siehe master-data.ts ----------
+
+// Die Datei entsteht schon beim Öffnen des Menüs: Das iPad gibt sie nur direkt nach dem Antippen weiter
+let preparedLists: ReturnType<typeof exportMasterData> | null = null;
+document.getElementById('home-menu-btn')!.addEventListener('click', () => {
+  preparedLists = exportMasterData();
+  preparedLists.catch(console.error);
+});
+
+document.getElementById('lists-export-btn')!.addEventListener('click', async () => {
+  try {
+    const lists = await (preparedLists ?? exportMasterData());
+    preparedLists = null;
+    await saveFile(lists);
+    setStatus(`${lists.count} Einträge gesichert.`);
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') return; // Teilen-Fenster wurde einfach geschlossen
+    console.error(err);
+    setStatus('Die Listen konnten nicht gesichert werden.');
+  }
+});
+
+const listsInput = document.getElementById('lists-import-input') as HTMLInputElement;
+document.getElementById('lists-import-btn')!.addEventListener('click', () => listsInput.click());
+listsInput.addEventListener('change', async () => {
+  const file = listsInput.files![0];
+  listsInput.value = '';
+  if (!file) return;
+  try {
+    const { added, changed } = await importMasterData(file);
+    setStatus(
+      added || changed
+        ? `Listen eingelesen: ${added} neu, ${changed} aktualisiert.`
+        : 'Listen eingelesen: Es war schon alles da.'
+    );
+  } catch (err) {
+    console.error(err);
+    setStatus((err as Error).message || 'Die Listen konnten nicht eingelesen werden.');
+  }
+});
 
 // ---------- Bereich (Büro) wählen: Logo oben links ----------
 

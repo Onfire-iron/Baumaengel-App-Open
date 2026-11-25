@@ -2,13 +2,14 @@
 // Fenster "Gewerk wählen": Kacheln aus der Gewerke-Liste, suchen, ergänzen, löschen
 // =============================================================
 //
-// Die Liste gilt für alle Projekte und liegt in der Datenbank (Tabelle "trades", db.ts), am Anfang
-// gefüllt mit TRADES aus defects.ts. Sie kommt auch ins Backup. Erster Test für die geplanten
-// Auswahlfenster für Firmen und Namen.
+// Die Liste gilt für alle Projekte und liegt bei den Stammdaten (Art "trade", master-entries.ts),
+// am Anfang gefüllt mit TRADES aus defects.ts. Gelöschte Gewerke bekommen nur einen Lösch-Vermerk,
+// damit der Abgleich mit anderen Geräten davon erfährt. Erster Test für die geplanten Auswahlfenster
+// für Firmen und Namen.
 
 import * as store from './db.ts';
 import { normalize, searchWords } from './search.ts';
-import type { Trade } from './types.ts';
+import type { MasterEntry } from './types.ts';
 import { closeOnOutsideTap } from './outside-tap.ts';
 
 const dialog = document.getElementById('trades-dialog') as HTMLElement;
@@ -19,7 +20,7 @@ const editBtn = document.getElementById('trades-edit') as HTMLButtonElement;
 const hint = document.getElementById('trades-hint') as HTMLElement;
 const clearBtn = document.getElementById('trades-clear') as HTMLButtonElement;
 
-let trades: Trade[] = [];
+let trades: MasterEntry[] = [];
 let current = '';
 let editing = false;
 let onPick: ((name: string) => void) | null = null;
@@ -32,7 +33,7 @@ function matches(name: string, query: string) {
 
 // Das Suchfeld bekommt bewusst keinen Fokus: Die iPad-Tastatur würde die Kacheln verdecken
 export async function openTradesDialog(value: string, pick: (name: string) => void): Promise<void> {
-  trades = await store.listTrades();
+  trades = await store.listMaster('trade');
   current = value;
   onPick = pick;
   search.value = '';
@@ -86,7 +87,7 @@ function render() {
   grid.replaceChildren(...items);
 }
 
-function createChoice(name: string, trade: Trade | null) {
+function createChoice(name: string, trade: MasterEntry | null) {
   const btn = document.createElement('button');
   btn.className = 'choice';
   btn.textContent = name;
@@ -111,8 +112,8 @@ function createAddChoice(input: string) {
   btn.textContent = `„${text}“ hinzufügen`;
   btn.addEventListener('click', async () => {
     try {
-      await store.addTrade(text);
-      choose(text);
+      const entry = await store.addMaster('trade', text);
+      choose(entry.name);
     } catch (err) {
       console.error(err);
       message.textContent = 'Das Gewerk konnte nicht gespeichert werden. Ist der Speicher voll?';
@@ -121,10 +122,10 @@ function createAddChoice(input: string) {
   return btn;
 }
 
-async function removeTrade(trade: Trade) {
+async function removeTrade(trade: MasterEntry) {
   if (!confirm(`„${trade.name}“ aus der Liste löschen? Mängel mit diesem Gewerk behalten es.`)) return;
   try {
-    await store.deleteTrade(trade.id);
+    await store.deleteMaster(trade.uid);
     trades = trades.filter((t) => t !== trade);
     render();
   } catch (err) {

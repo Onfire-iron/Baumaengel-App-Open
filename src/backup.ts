@@ -161,7 +161,7 @@ async function writeProject(
     plans: [],
     defects: [],
     textBlocks: (await store.listTextBlocks()).map((block) => block.text),
-    trades: (await store.listTrades()).map((trade) => trade.name),
+    trades: (await store.listMaster('trade')).map((trade) => trade.name),
   };
 
   for (const [index, plan] of plans.entries()) {

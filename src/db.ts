@@ -5,6 +5,7 @@
 import Dexie from 'dexie';
 import type { EntityTable } from 'dexie';
 import { DEFAULT_TEXT_BLOCKS, IMPORTANCE, TRADES, readMarking } from './defects.ts';
+import { defaultEntries, defaultUid, nameKey, newUid } from './master-entries.ts';
 import type { PartyKey } from './parties.ts';
 import type {
   Defect,
@@ -18,8 +19,9 @@ import type {
   Project,
   ProjectStats,
   ReportSettings,
+  MasterEntry,
+  MasterKind,
   TextBlock,
-  Trade,
 } from './types.ts';
 
 // Die Tabellen entstehen erst durch die Versionen unten, darum hier die Angabe, was drinliegt.
@@ -33,7 +35,7 @@ export const db = new Dexie('baumaengel') as Dexie & {
   reportSettings: EntityTable<ReportSettings, 'projectId'>;
   textBlocks: EntityTable<TextBlock, 'id'>;
   profiles: EntityTable<Profile, 'id'>;
-  trades: EntityTable<Trade, 'id'>;
+  masterData: EntityTable<MasterEntry, 'uid'>;
 };
 
 // Hinter dem Namen stehen nur die Felder, nach denen gesucht wird.
@@ -179,10 +181,37 @@ db.version(9)
     await tx.table('trades').bulkAdd(TRADES.map((name) => ({ name })));
   });
 
+// Stammdaten (Etappe 4.29): Die Gewerke ziehen in die gemeinsame Tabelle masterData um und bekommen
+// feste Kennungen, Änderungszeit und Lösch-Vermerk für den Abgleich (master-entries.ts). Vorgaben
+// behalten ihre feste uid, selbst angelegte Gewerke bekommen eine neue. Die Tabelle trades entfällt
+// (Dexie löscht sie erst nach dieser Umstellung, darum lässt sie sich hier noch lesen).
+db.version(10)
+  .stores({
+    masterData: 'uid, kind', // { uid, kind, name, updatedAt, deleted }
+    trades: null,
+  })
+  .upgrade(async (tx) => {
+    const defaults = new Set(TRADES.map(nameKey));
+    const now = Date.now();
+    const entries = new Map<string, MasterEntry>();
+    for (const { name } of await tx.table('trades').toArray()) {
+      const isDefault = defaults.has(nameKey(name));
+      const uid = isDefault ? defaultUid('trade', name) : newUid();
+      if (!entries.has(nameKey(name))) {
+        entries.set(nameKey(name), { uid, kind: 'trade', name, updatedAt: isDefault ? 0 : now, deleted: false });
+      }
+    }
+    // Gelöschte Vorgaben bekommen einen Lösch-Vermerk, sonst kämen sie beim Abgleich zurück
+    for (const entry of defaultEntries()) {
+      if (!entries.has(nameKey(entry.name))) entries.set(nameKey(entry.name), { ...entry, deleted: true, updatedAt: now });
+    }
+    await tx.table('masterData').bulkAdd([...entries.values()]);
+  });
+
 // Läuft nur beim allerersten Start, sonst übernehmen das die Umstellungen oben
 db.on('populate', async (tx) => {
   await tx.table('textBlocks').bulkAdd(DEFAULT_TEXT_BLOCKS.map((text) => ({ text })));
-  await tx.table('trades').bulkAdd(TRADES.map((name) => ({ name })));
+  await tx.table('masterData').bulkAdd(defaultEntries());
 });
 
 // ---------- Projekte ----------
@@ -441,29 +470,75 @@ export function deleteTextBlock(id: number) {
   return db.textBlocks.delete(id);
 }
 
-// ---------- Gewerke ----------
+// ---------- Stammdaten (Gewerke usw.), siehe master-entries.ts ----------
 
-export async function listTrades() {
-  const trades = await db.trades.toArray();
-  return trades.sort((a, b) => a.name.localeCompare(b.name, 'de'));
+// Die Einträge einer Liste ohne die gelöschten, alphabetisch
+export async function listMaster(kind: MasterKind) {
+  const entries = await db.masterData.where('kind').equals(kind).toArray();
+  return entries.filter((entry) => !entry.deleted).sort((a, b) => a.name.localeCompare(b.name, 'de'));
 }
 
-export function addTrade(name: string) {
-  return db.trades.add({ name });
+// Alle Einträge mit den Lösch-Vermerken, zum Weitergeben
+export function allMasterEntries() {
+  return db.masterData.toArray();
 }
 
-// Mängel mit diesem Gewerk behalten es, es fehlt nur in der Auswahl
-export function deleteTrade(id: number) {
-  return db.trades.delete(id);
-}
-
-// Ergänzt beim Import die Gewerke, die es auf diesem Gerät noch nicht gibt
-export function addMissingTrades(names: string[]) {
-  return db.transaction('rw', db.trades, async () => {
-    const known = new Set((await db.trades.toArray()).map((trade) => trade.name.toLowerCase()));
-    const missing = [...new Set(names)].filter((name) => !known.has(name.toLowerCase()));
-    await db.trades.bulkAdd(missing.map((name) => ({ name })));
+// Legt einen Eintrag an. Gibt es den Namen schon, bleibt es bei dem; war er gelöscht, kommt er zurück.
+export function addMaster(kind: MasterKind, name: string) {
+  return db.transaction('rw', db.masterData, async () => {
+    const key = nameKey(name);
+    const same = (await db.masterData.where('kind').equals(kind).toArray()).filter((e) => nameKey(e.name) === key);
+    const active = same.find((entry) => !entry.deleted);
+    if (active) return active;
+    if (same.length) {
+      await db.masterData.update(same[0].uid, { name, deleted: false, updatedAt: Date.now() });
+      return { ...same[0], name, deleted: false };
+    }
+    const entry: MasterEntry = { uid: newUid(), kind, name, updatedAt: Date.now(), deleted: false };
+    await db.masterData.add(entry);
+    return entry;
   });
+}
+
+// Lösch-Vermerk statt Entfernen. Mängel mit diesem Gewerk behalten es, es fehlt nur in der Auswahl.
+export function deleteMaster(uid: string) {
+  return db.masterData.update(uid, { deleted: true, updatedAt: Date.now() });
+}
+
+// Übernimmt Einträge von einem anderen Gerät (Datei, später SharePoint):
+// - unbekannte Kennung: neu, außer es gibt den Namen hier schon (dann zählt der vorhandene Eintrag)
+// - bekannte Kennung: die neuere Fassung gilt, auch für Löschungen
+export function mergeMaster(incoming: MasterEntry[]) {
+  return db.transaction('rw', db.masterData, async () => {
+    const local = await db.masterData.toArray();
+    const byUid = new Map(local.map((entry) => [entry.uid, entry]));
+    const activeNames = new Set(local.filter((e) => !e.deleted).map((e) => `${e.kind}|${nameKey(e.name)}`));
+    let added = 0;
+    let changed = 0;
+    for (const entry of incoming) {
+      const known = byUid.get(entry.uid);
+      if (!known) {
+        const key = `${entry.kind}|${nameKey(entry.name)}`;
+        if (activeNames.has(key)) continue;
+        await db.masterData.add(entry);
+        byUid.set(entry.uid, entry);
+        if (!entry.deleted) {
+          activeNames.add(key);
+          added++;
+        }
+      } else if (entry.updatedAt > known.updatedAt) {
+        await db.masterData.put(entry);
+        byUid.set(entry.uid, entry);
+        changed++;
+      }
+    }
+    return { added, changed };
+  });
+}
+
+// Ergänzt beim Import eines Projekt-Backups die Gewerke, die es hier noch nicht gibt (dort nur als Namen)
+export async function addMissingTrades(names: string[]) {
+  for (const name of new Set(names)) await addMaster('trade', name);
 }
 
 // ---------- Profile ----------
