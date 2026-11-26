@@ -202,7 +202,7 @@ db.version(10)
       }
     }
     // Gelöschte Vorgaben bekommen einen Lösch-Vermerk, sonst kämen sie beim Abgleich zurück
-    for (const entry of defaultEntries()) {
+    for (const entry of defaultEntries().filter((e) => e.kind === 'trade')) {
       if (!entries.has(nameKey(entry.name))) entries.set(nameKey(entry.name), { ...entry, deleted: true, updatedAt: now });
     }
     await tx.table('masterData').bulkAdd([...entries.values()]);
@@ -240,6 +240,13 @@ db.version(11).stores({}).upgrade(async (tx) => {
     }
   }
   await tx.table('masterData').bulkAdd([...companies.values(), ...persons.values()]);
+});
+
+// Veranlassung und Textbausteine als Listen (Etappe 4.33): Die Vorgaben der neuen Listen kommen dazu.
+// Nur was es mit dieser Kennung noch nicht gibt, damit Gelöschtes gelöscht bleibt.
+db.version(12).stores({}).upgrade(async (tx) => {
+  const known = new Set((await tx.table('masterData').toCollection().primaryKeys()) as string[]);
+  await tx.table('masterData').bulkAdd(defaultEntries().filter((entry) => !known.has(entry.uid)));
 });
 
 // Läuft nur beim allerersten Start, sonst übernehmen das die Umstellungen oben
@@ -552,7 +559,7 @@ export function allMasterEntries() {
 
 // Legt einen Eintrag an. Gibt es den Namen schon, bleibt es bei dem; war er gelöscht, kommt er zurück.
 // Bei Personen gehören Firma (companyUid) und Funktion (role) dazu, siehe entryKey.
-export type MasterExtra = Pick<MasterEntry, 'companyUid' | 'role'>;
+export type MasterExtra = Partial<Pick<MasterEntry, 'companyUid' | 'role' | 'category' | 'blockType'>>;
 
 export function addMaster(kind: MasterKind, name: string, extra: MasterExtra = {}) {
   return db.transaction('rw', db.masterData, async () => {

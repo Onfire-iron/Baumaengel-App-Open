@@ -115,6 +115,7 @@ export async function openReportDialog(project: Project, plans: Plan[], pins: De
   showDate(dateInput);
   occasionInput.value = occasionOf(settings);
   renderOccasionChips();
+  loadOccasions().catch(console.error);
   documentsInput.value = settings.documents ?? '';
   executionInput.value = settings.executionState ?? '';
   proofsInput.value = settings.requiredProofs ?? '';
@@ -282,10 +283,18 @@ function renderPlans() {
   );
 }
 
-// Vorschläge für die Veranlassung, ohne den, der schon im Feld steht
+// Vorschläge für die Veranlassung aus der Liste (Stammdaten, auch per Excel einlesbar), ohne den,
+// der schon im Feld steht. Die Liste wird beim Öffnen des Fensters geladen.
+let occasions: string[] = [...OCCASIONS];
+
+async function loadOccasions() {
+  occasions = (await store.listMaster('occasion')).map((entry) => entry.name);
+  renderOccasionChips();
+}
+
 function renderOccasionChips() {
   occasionChips.replaceChildren(
-    ...OCCASIONS.filter((text) => text !== occasionInput.value.trim()).map(createOccasionChip)
+    ...occasions.filter((text) => text !== occasionInput.value.trim()).map(createOccasionChip)
   );
 }
 

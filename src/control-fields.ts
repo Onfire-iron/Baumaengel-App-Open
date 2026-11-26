@@ -14,8 +14,8 @@
 
 import type { ReportSettings } from './types.ts';
 
-// Vorschläge für "Veranlassung", der erste gilt, solange nichts eingetragen wurde.
-// Später kommen sie aus den Textbausteinen.
+// Vorgabe für "Veranlassung": gilt, solange nichts eingetragen wurde, und ist der erste Eintrag der
+// Liste "occasion" in den Stammdaten (master-entries.ts). Weitere Vorschläge kommen aus der Liste.
 export const OCCASIONS = ['Termin auf Wunsch der Bauleitung'];
 
 // Fester Absatz vor der Liste. recipient ist der Empfänger im Dativ, z. B. "der Musterfirma GmbH"

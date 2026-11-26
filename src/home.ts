@@ -8,6 +8,7 @@ import type { BackupContents, ImportResult } from './backup.ts';
 import { IMPORTANCE, IMPORTANCE_PLURAL, IMPORTANCE_TEXT } from './defects.ts';
 import { DIVISIONS, NO_DIVISION, activeDivision, assetUrl, divisionName, findDivision, setActiveDivision } from './divisions.ts';
 import { exportMasterData, importMasterData } from './master-data.ts';
+import { openListImport } from './list-import.ts';
 import { bindMenu } from './menu.ts';
 import { getPlanThumb } from './plan-thumb.ts';
 import { openProjectDialog } from './project-dialog.ts';
@@ -48,7 +49,7 @@ const noMatch = createNoMatch();
 
 bindMenu(document.getElementById('home-menu-btn')!, document.getElementById('home-menu')!);
 
-// ---------- Listen für alle Projekte (Gewerke usw.) als Datei, siehe master-data.ts ----------
+// ---------- Listen für alle Projekte (Gewerke usw.) als Datei, siehe master-data.ts und list-import.ts ----------
 
 // Die Datei entsteht schon beim Öffnen des Menüs: Das iPad gibt sie nur direkt nach dem Antippen weiter
 let preparedLists: ReturnType<typeof exportMasterData> | null = null;
@@ -77,6 +78,11 @@ listsInput.addEventListener('change', async () => {
   listsInput.value = '';
   if (!file) return;
   try {
+    // Excel-Vorlage: erst die Vorschau (list-import.ts), die Listen-Datei der App gleich zusammenführen
+    if (/\.xls[xm]?$/i.test(file.name) || file.type.includes('spreadsheet') || file.type.includes('excel')) {
+      await openListImport(file, setStatus);
+      return;
+    }
     const { added, changed } = await importMasterData(file);
     setStatus(
       added || changed

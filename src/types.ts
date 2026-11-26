@@ -91,7 +91,10 @@ export interface TextBlock {
 
 // Stammdaten: Einträge der Listen für alle Projekte, siehe master-entries.ts
 // trade = Gewerk, company = Firma oder Amt, person = Person (gehört zu einer Firma)
-export type MasterKind = 'trade' | 'company' | 'person'; // später auch Textbausteine …
+export type MasterKind = 'trade' | 'company' | 'person' | 'occasion' | 'textblock';
+
+// Textbaustein: Überschrift des Mangels oder Text für die Notizen
+export type TextBlockType = 'title' | 'note';
 
 export interface MasterEntry {
   uid: string; // feste Kennung, auf allen Geräten gleich
@@ -101,6 +104,8 @@ export interface MasterEntry {
   deleted: boolean; // Lösch-Vermerk statt Entfernen
   companyUid?: string; // nur Personen: ihre Firma (uid eines Eintrags "company")
   role?: string; // nur Personen: Funktion, z. B. "Bauleitung"
+  category?: string; // nur Textbausteine: Kategorie, z. B. "Tür"
+  blockType?: TextBlockType; // nur Textbausteine
 }
 
 // Begehung: wer an welchem Tag dabei war, siehe inspections.ts

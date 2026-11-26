@@ -1,5 +1,5 @@
 // =============================================================
-// Stammdaten: Listen für alle Projekte (Gewerke, später Kontakte, Textbausteine …)
+// Stammdaten: Listen für alle Projekte (Gewerke, Firmen, Personen, Veranlassung, Textbausteine)
 // =============================================================
 //
 // Jeder Eintrag ist so gebaut, dass er sich zwischen Geräten und später mit SharePoint abgleichen lässt:
@@ -10,17 +10,26 @@
 // Geräten nicht doppelt.
 // Gespeichert in der Tabelle masterData (db.ts), als Datei weitergegeben über master-data.ts.
 
+import { OCCASIONS } from './control-fields.ts';
 import { TRADES } from './defects.ts';
 import { normalize } from './search.ts';
-import type { MasterEntry, MasterKind } from './types.ts';
+import type { MasterEntry, MasterKind, TextBlockType } from './types.ts';
 
-export const MASTER_KINDS: readonly MasterKind[] = ['trade', 'company', 'person'];
+export const MASTER_KINDS: readonly MasterKind[] = ['trade', 'company', 'person', 'occasion', 'textblock'];
+const BLOCK_TYPES: readonly TextBlockType[] = ['title', 'note'];
+
+// Höchstlänge des Namens. Textbausteine dürfen länger sein, sie können ganze Sätze enthalten.
+export function maxNameLength(kind: MasterKind): number {
+  return kind === 'textblock' ? 2000 : 200;
+}
 
 // Vorgaben je Liste, solange auf dem Gerät noch nichts anderes steht
 const DEFAULTS: Record<MasterKind, readonly string[]> = {
   trade: TRADES,
   company: [],
   person: [],
+  occasion: OCCASIONS,
+  textblock: [],
 };
 
 // Gleicher Name heißt gleicher Eintrag: Groß/klein, Umlaute und Leerzeichen egal
@@ -29,9 +38,13 @@ export function nameKey(name: string): string {
 }
 
 // Woran zwei Einträge als derselbe erkannt werden: Art und Name, bei Personen zusätzlich die Firma
-// (zwei "Thomas Müller" in verschiedenen Firmen sind zwei Personen)
-export function entryKey(entry: Pick<MasterEntry, 'kind' | 'name' | 'companyUid'>): string {
-  return `${entry.kind}|${nameKey(entry.name)}|${entry.kind === 'person' ? (entry.companyUid ?? '') : ''}`;
+// (zwei "Thomas Müller" in verschiedenen Firmen sind zwei Personen), bei Textbausteinen Kategorie
+// und Art (derselbe Text unter "Tür" und "Fenster" sind zwei Bausteine)
+export function entryKey(entry: Pick<MasterEntry, 'kind' | 'name' | 'companyUid' | 'category' | 'blockType'>): string {
+  let extra = '';
+  if (entry.kind === 'person') extra = entry.companyUid ?? '';
+  if (entry.kind === 'textblock') extra = `${nameKey(entry.category ?? '')}:${entry.blockType ?? 'note'}`;
+  return `${entry.kind}|${nameKey(entry.name)}|${extra}`;
 }
 
 export function defaultUid(kind: MasterKind, name: string): string {
@@ -57,17 +70,22 @@ export function readEntry(value: unknown): MasterEntry | null {
   if (!entry || typeof entry !== 'object') return null;
   if (typeof entry.uid !== 'string' || !entry.uid || entry.uid.length > 200) return null;
   if (!MASTER_KINDS.includes(entry.kind as MasterKind)) return null;
-  const name = typeof entry.name === 'string' ? entry.name.trim().slice(0, 200) : '';
+  const kind = entry.kind as MasterKind;
+  const name = typeof entry.name === 'string' ? entry.name.trim().slice(0, maxNameLength(kind)) : '';
   if (!name) return null;
   const updatedAt = Number(entry.updatedAt);
   const text = (value: unknown) => (typeof value === 'string' ? value.trim().slice(0, 200) : '');
   return {
     uid: entry.uid,
-    kind: entry.kind as MasterKind,
+    kind,
     name,
     updatedAt: Number.isFinite(updatedAt) && updatedAt >= 0 ? updatedAt : 0,
     deleted: entry.deleted === true,
     ...(entry.kind === 'person' && text(entry.companyUid) ? { companyUid: text(entry.companyUid) } : {}),
     ...(entry.kind === 'person' && text(entry.role) ? { role: text(entry.role) } : {}),
+    ...(entry.kind === 'textblock' && text(entry.category) ? { category: text(entry.category) } : {}),
+    ...(entry.kind === 'textblock'
+      ? { blockType: BLOCK_TYPES.includes(entry.blockType as TextBlockType) ? (entry.blockType as TextBlockType) : 'note' }
+      : {}),
   };
 }

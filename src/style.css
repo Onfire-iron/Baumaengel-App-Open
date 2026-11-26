@@ -2335,6 +2335,7 @@ textarea.in {
 
 /* ---------- Fenster ---------- */
 #report-dialog,
+#list-import-dialog,
 #inspections-dialog,
 #text-blocks-dialog,
 #choice-dialog,
@@ -3148,4 +3149,156 @@ textarea.in {
 .field > .field-head + input,
 .field > .field-head + textarea {
   margin-top: 6px;
+}
+
+/* ---------- Vorschau beim Einlesen der Excel-Vorlage (list-import.ts) ---------- */
+#list-import-dialog .dialog-box {
+  display: flex;
+  flex-direction: column;
+  width: min(620px, 100%);
+}
+
+#list-import-dialog h2 {
+  margin-bottom: 4px;
+}
+
+#list-import-file {
+  margin-bottom: 14px;
+  overflow-wrap: anywhere;
+}
+
+/* Nur die Reiter scrollen, die Knöpfe bleiben unten stehen */
+.import-sheets {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.import-sheet {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--well);
+}
+
+.import-sheet-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.import-sheet-head h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.import-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.import-chip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.import-chip.is-new,
+.import-chip.is-update {
+  border-color: transparent;
+  background: var(--hinweis);
+  color: #fff;
+}
+
+.import-chip.is-error {
+  border-color: transparent;
+  background: var(--danger);
+  color: #fff;
+}
+
+.import-hint,
+.import-problem,
+.import-list-head {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.import-problem,
+.import-list-head {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.import-fold {
+  margin-top: 8px;
+}
+
+.import-fold summary {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  color: var(--brand);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.import-rows {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.import-rows li {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+
+.import-rows li:first-child {
+  border-top: 0;
+}
+
+.import-row-no {
+  flex: none;
+  width: 48px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.import-row-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.import-row-text small {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.import-rows li.is-error .import-row-text small {
+  color: var(--danger);
+}
+
+/* Dunkles Design: Links hellblau, auf dem helleren Rot dunkle Schrift */
+[data-theme='dunkel'] .import-fold summary {
+  color: var(--accent);
+}
+
+[data-theme='dunkel'] .import-chip.is-error {
+  color: #2a0606;
 }

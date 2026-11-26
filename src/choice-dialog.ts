@@ -14,8 +14,11 @@ import { closeOnOutsideTap } from './outside-tap.ts';
 import { normalize, searchWords } from './search.ts';
 import type { MasterEntry, MasterKind } from './types.ts';
 
+// Die Listen, aus denen das Fenster wählen lässt (Veranlassung und Textbausteine haben eigene Stellen)
+export type ChoiceKind = Extract<MasterKind, 'trade' | 'company' | 'person'>;
+
 export interface Picked {
-  kind: MasterKind; // aus welcher Liste (wichtig, wenn zwischen Firmen und Personen umgeschaltet wurde)
+  kind: ChoiceKind; // aus welcher Liste (wichtig, wenn zwischen Firmen und Personen umgeschaltet wurde)
   name: string;
   company: string; // nur bei Personen: Name ihrer Firma
   role: string; // nur bei Personen
@@ -29,7 +32,7 @@ interface KindText {
   keep: string; // was beim Löschen erhalten bleibt
 }
 
-const TEXT: Record<MasterKind, KindText> = {
+const TEXT: Record<ChoiceKind, KindText> = {
   trade: {
     title: 'Gewerk wählen',
     one: 'das Gewerk',
@@ -74,7 +77,7 @@ const listButtons = dialog.querySelector('.choice-buttons') as HTMLElement;
 const kindSwitch = document.getElementById('choice-kinds') as HTMLElement;
 const kindButtons = kindSwitch.querySelectorAll<HTMLButtonElement>('[data-kind]');
 
-let kind: MasterKind = 'trade';
+let kind: ChoiceKind = 'trade';
 let entries: MasterEntry[] = [];
 let companies = new Map<string, string>(); // uid -> Name, für die Personen
 let current = '';
@@ -99,13 +102,13 @@ function companyOf(entry: MasterEntry) {
 // Das Suchfeld bekommt bewusst keinen Fokus: Die iPad-Tastatur würde die Kacheln verdecken.
 // Mehrere Listen (z. B. Firmen und Personen für die Beteiligten): oben ein Umschalter, die erste gilt zuerst.
 export async function openChoiceDialog(
-  listKind: MasterKind | MasterKind[],
+  listKind: ChoiceKind | ChoiceKind[],
   value: string,
   pick: (picked: Picked) => void
 ): Promise<void> {
   const kinds = Array.isArray(listKind) ? listKind : [listKind];
   kindSwitch.hidden = kinds.length < 2;
-  kindButtons.forEach((btn) => (btn.hidden = !kinds.includes(btn.dataset.kind as MasterKind)));
+  kindButtons.forEach((btn) => (btn.hidden = !kinds.includes(btn.dataset.kind as ChoiceKind)));
   current = value;
   onPick = pick;
   clearBtn.disabled = !value;
@@ -113,7 +116,7 @@ export async function openChoiceDialog(
   await switchKind(kinds[0]);
 }
 
-async function switchKind(next: MasterKind) {
+async function switchKind(next: ChoiceKind) {
   kind = next;
   [entries, companies] = await Promise.all([store.listMaster(kind), store.companyNames()]);
   title.textContent = TEXT[kind].title;
@@ -131,7 +134,7 @@ async function switchKind(next: MasterKind) {
   grid.scrollTop = 0;
 }
 
-kindButtons.forEach((btn) => btn.addEventListener('click', () => switchKind(btn.dataset.kind as MasterKind)));
+kindButtons.forEach((btn) => btn.addEventListener('click', () => switchKind(btn.dataset.kind as ChoiceKind)));
 
 function close() {
   dialog.hidden = true;

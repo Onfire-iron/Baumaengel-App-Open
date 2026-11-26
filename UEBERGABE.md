@@ -205,6 +205,8 @@ src/
   party-fields.ts     Eingabefelder der Beteiligten mit "Aus der Liste" (Projekt- und Berichtsfenster)
   master-entries.ts   Stammdaten: Aufbau der Einträge, Vorgaben, feste Kennungen
   master-data.ts      Stammdaten als Datei: "Listen sichern" / "Listen einlesen"
+  list-import.ts      Excel-Vorlage einlesen: Prüfung der Zeilen und Vorschau-Fenster
+  xlsx-read.ts        Zellen einer .xlsx lesen (ZIP + XML, ohne eigene Excel-Bibliothek)
   outside-tap.ts      Tippen neben ein Fenster schließt es (wie sein Schließen-Knopf)
   history.ts          Rückgängig/Wiederholen: Verlauf der Änderungen an Mängeln
   control-fields.ts   Angaben zur Baukontrolle: Vorgaben, feste Texte, Aufzählungen erkennen
@@ -231,7 +233,7 @@ src/
 
 ## Regeln für gespeicherte Daten
 
-**Datenbank (`db.ts`):** Der Name ist `baumaengel`, aktuell gilt Version 11.
+**Datenbank (`db.ts`):** Der Name ist `baumaengel`, aktuell gilt Version 12.
 
 - Bestehende `db.version(...)`-Blöcke nie ändern. Änderungen kommen als neue Version mit `.upgrade(...)`.
 - Geänderte Felder auch in `types.ts` nachziehen.
@@ -355,6 +357,24 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
   freie Textfelder, haben aber seit 4.32 "Aus der Liste" (Umschalter Firmen/Personen im Auswahlfenster;
   eine Person wird als "Name" und darunter "Firma" eingetragen). Neue Begehung (seit 4.32): Die Teilnehmer
   der letzten Begehung, dazu ganz oben das gewählte Profil mit seiner Firma, falls es noch fehlt.
+- **Veranlassung und Textbausteine als Listen (seit 4.33):** Stammdaten-Arten `occasion` (Vorschläge für
+  "Veranlassung" im Berichtsfenster, Vorgabe aus `OCCASIONS`) und `textblock` (Felder `category` und
+  `blockType` 'title'/'note'; gleich ist ein Baustein nur bei gleicher Kategorie und Art, siehe `entryKey`).
+  DB-Version 12 ergänzt nur die Vorgaben der neuen Listen. Die Textbausteine werden gespeichert und
+  weitergegeben, angezeigt werden sie erst mit dem geplanten Textbaustein-Fenster (`text-blocks.ts` ist
+  noch Platzhalter, die alte Tabelle `textBlocks` bleibt unverändert). Das Auswahlfenster kennt nur
+  `ChoiceKind` (Gewerk, Firma, Person).
+- **Excel-Import (seit 4.33):** "Listen einlesen" nimmt neben der JSON-Datei auch die Excel-Vorlage
+  (Reiter Kontakte, Gewerke, Textbausteine, Veranlassung; Reiter und Spalten werden am Namen in Zeile 1
+  erkannt, Reihenfolge egal, Reiter "Anleitung" und unbekannte werden übersprungen). Erst kommt eine
+  Vorschau je Reiter: neu, ergänzt, vorhanden, fehlerhaft (mit Zeilennummer und Grund). Übernommen wird
+  erst mit "N übernehmen". Regeln: nur ergänzen, nie löschen oder umbenennen; Dubletten in der Datei
+  zählen als vorhanden; in der App gelöschte Einträge kommen zurück (als "neu" gekennzeichnet); bei
+  Personen wird eine fehlende Funktion oder eine fehlende Firma ergänzt; eine Zeile nur mit Firma legt
+  die Firma an; leere Art bei Textbausteinen gilt als Notiz. Gelesen wird die .xlsx selbst
+  (`xlsx-read.ts`): Texte aus `sharedStrings.xml` oder direkt in der Zelle, Formeln mit ihrem letzten
+  Ergebnis, höchstens 5000 Zeilen je Reiter. Alte .xls-Dateien werden erkannt und abgelehnt.
+  Die Vorlage selbst liegt nicht im Repo (sie wird mit echten Namen gefüllt).
 - **Gewerke-Liste (seit 4.24):** Die Kachel "Gewerk" öffnet das Fenster "Gewerk wählen" (seit 4.31 `choice-dialog.ts`)
   mit Kacheln aus den Stammdaten (seit 4.29, vorher Tabelle `trades`; anfangs `TRADES` aus `defects.ts`). Tippen
   wählt, Suchen filtert, ein neuer Name lässt sich direkt hinzufügen, "Bearbeiten" löscht Einträge
