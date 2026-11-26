@@ -33,7 +33,7 @@ import { openReportDialog } from './report-dialog.ts';
 import { normalize, searchWords } from './search.ts';
 import { setStatus } from './status.ts';
 import { openTextBlocks } from './text-blocks.ts';
-import { openTradesDialog } from './trades-dialog.ts';
+import { openChoiceDialog } from './choice-dialog.ts';
 import { initDateTile, showDate } from './date-tile.ts';
 import {
   clearHistory,
@@ -114,8 +114,8 @@ const notesInput = document.getElementById('pin-notes') as HTMLTextAreaElement;
 const textBlocksBtn = document.getElementById('text-blocks-btn') as HTMLButtonElement;
 const tradeBtn = document.getElementById('pin-trade-btn') as HTMLButtonElement;
 const tradeText = document.getElementById('pin-trade') as HTMLElement;
-const companyInput = document.getElementById('pin-company') as HTMLInputElement;
-const companyOptions = document.getElementById('company-options') as HTMLDataListElement;
+const companyBtn = document.getElementById('pin-company-btn') as HTMLButtonElement;
+const companyText = document.getElementById('pin-company') as HTMLElement;
 const foundInput = document.getElementById('pin-found') as HTMLInputElement;
 const dueInput = document.getElementById('pin-due') as HTMLInputElement;
 const createdByRow = document.getElementById('created-by-row') as HTMLElement;
@@ -1043,7 +1043,7 @@ window.addEventListener('keydown', (e) => {
   if ((e.target as Element).closest('input, textarea, select')) return; // beim Tippen in Feldern nichts löschen
   // Hinter einem offenen Fenster bleibt der Punkt ausgewählt, darf aber nicht gelöscht werden
   const openDialog =
-    '#photo-editor:not([hidden]), #text-blocks-dialog:not([hidden]), #trades-dialog:not([hidden]), ' +
+    '#photo-editor:not([hidden]), #text-blocks-dialog:not([hidden]), #choice-dialog:not([hidden]), ' +
     '#profile-dialog:not([hidden]), ' +
     '#project-dialog:not([hidden]), #camera-dialog:not([hidden])';
   if (document.querySelector(openDialog)) return;
@@ -1318,15 +1318,13 @@ function fillPanel() {
   panelHeading.textContent = `Mangel ${getPinNumber(pin)}`;
   titleInput.value = pin.title;
   notesInput.value = pin.notes;
-  showTrade(pin);
-  companyInput.value = pin.company;
+  showListFields(pin);
   foundInput.value = pin.foundAt ?? '';
   dueInput.value = pin.dueDate ?? '';
   showDate(foundInput);
   showDate(dueInput);
   createdByRow.hidden = !pin.createdBy; // bei älteren Mängeln unbekannt
   createdByText.textContent = pin.createdBy ?? '';
-  fillOptions(companyOptions, pins.map((p) => p.company));
   showMarking(pin);
   panelBody.scrollTop = 0;
   clearThumbs();
@@ -1346,18 +1344,6 @@ function showMarking(pin: Defect) {
     badge.className = `badge ${pin.importance}`;
     badge.textContent = String(getPinNumber(pin));
   }
-}
-
-// Vorschläge für ein Eingabefeld: ohne Doppelte und leere Einträge, alphabetisch
-function fillOptions(list: HTMLElement, values: string[]) {
-  const sorted = [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'de'));
-  list.replaceChildren(
-    ...sorted.map((value) => {
-      const option = document.createElement('option');
-      option.value = value;
-      return option;
-    })
-  );
 }
 
 function setPressed(btn: HTMLElement, pressed: boolean) {
@@ -1391,36 +1377,37 @@ notesInput.addEventListener('input', () => {
 });
 
 // Verlässt man ein Feld, ist das Tippen dort ein abgeschlossener Schritt
-for (const input of [titleInput, captureTitle, notesInput, companyInput]) input.addEventListener('blur', endMerge);
+for (const input of [titleInput, captureTitle, notesInput]) input.addEventListener('blur', endMerge);
 
 textBlocksBtn.addEventListener('click', openTextBlocks);
 
-// Gewerk: Auswahl aus der Gewerke-Liste im eigenen Fenster, siehe trades-dialog.ts
-function showTrade(pin: Defect) {
+// Gewerk und Firma: Auswahl aus den Listen im eigenen Fenster, siehe choice-dialog.ts
+function showListFields(pin: Defect) {
   tradeText.textContent = pin.trade || 'Wählen';
+  companyText.textContent = pin.company || 'Wählen';
 }
 
-tradeBtn.addEventListener('click', () => {
-  const pin = getSelectedPin();
-  if (!pin) return;
-  openTradesDialog(pin.trade, (trade) => {
-    if (!pins.includes(pin)) return; // inzwischen gelöscht
-    changePin(pin, 'Gewerk', () => (pin.trade = trade));
-    if (selectedId === pin.id) showTrade(pin);
-    renderList();
-  }).catch((err) => {
-    console.error(err);
-    setStatus('Die Gewerke konnten nicht geladen werden.');
+for (const [btn, kind, what, key] of [
+  [tradeBtn, 'trade', 'Gewerk', 'trade'],
+  [companyBtn, 'company', 'Firma', 'company'],
+] as const) {
+  btn.addEventListener('click', () => {
+    const pin = getSelectedPin();
+    if (!pin) return;
+    openChoiceDialog(kind, pin[key], ({ name }) => {
+      if (!pins.includes(pin)) return; // inzwischen gelöscht
+      changePin(pin, what, () => (pin[key] = name));
+      if (selectedId === pin.id) showListFields(pin);
+      renderList();
+    }).catch((err) => {
+      console.error(err);
+      setStatus('Die Liste konnte nicht geladen werden.');
+    });
   });
-});
+}
 
-// Firma und Termine. Ein geleertes Datumsfeld heißt: kein Datum.
-const detailFields: [
-  HTMLInputElement,
-  'company' | 'foundAt' | 'dueDate' | 'doneAt',
-  (value: string) => string | null,
-][] = [
-  [companyInput, 'company', (value) => value],
+// Termine. Ein geleertes Datumsfeld heißt: kein Datum.
+const detailFields: [HTMLInputElement, 'foundAt' | 'dueDate' | 'doneAt', (value: string) => string | null][] = [
   [foundInput, 'foundAt', (value) => value || null],
   [dueInput, 'dueDate', (value) => value || null],
   [doneAtInput, 'doneAt', (value) => value || null],
@@ -1429,10 +1416,8 @@ const detailFields: [
 for (const [input, key, read] of detailFields) {
   input.addEventListener('input', () => {
     const pin = getSelectedPin()!;
-    // Firma liefert immer Text, nur Datumsfelder können null werden (siehe detailFields).
-    // TypeScript kann das je Feld nicht nachvollziehen, darum die Angabe "as string".
-    const what = { company: 'Firma', foundAt: 'Festgestellt', dueDate: 'Frist', doneAt: 'Erledigt am' }[key];
-    changePin(pin, what, () => (pin[key] = read(input.value) as string), key === 'company' ? `company:${pin.id}` : undefined);
+    const what = { foundAt: 'Festgestellt', dueDate: 'Frist', doneAt: 'Erledigt am' }[key];
+    changePin(pin, what, () => (pin[key] = read(input.value)));
     if (input.type === 'date') showDate(input);
     showMarking(pin);
     renderList();
@@ -1441,19 +1426,6 @@ for (const [input, key, read] of detailFields) {
 
 // Datumskacheln, siehe date-tile.ts
 for (const input of [foundInput, dueInput, doneAtInput]) initDateTile(input);
-
-// Der Pfeil bei Firma klappt die Vorschläge auf (wo der Browser das kann)
-for (const input of [companyInput]) {
-  input.closest('.tile')!.querySelector('.tile-chevron')!.addEventListener('click', (e) => {
-    e.preventDefault();
-    input.focus();
-    try {
-      input.showPicker();
-    } catch {
-      // dann bleibt es beim Fokus, die Vorschläge erscheinen beim Tippen
-    }
-  });
-}
 
 function changeMarking(changes: Partial<Defect>, what: string) {
   const pin = getSelectedPin()!;

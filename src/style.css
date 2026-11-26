@@ -2230,14 +2230,14 @@ textarea.in {
   font-size: 22px;
 }
 
-#trades-message,
+#choice-message,
 #profile-message,
 #project-dialog-message {
   margin: 8px 0 0;
   color: var(--danger);
 }
 
-#trades-message:empty,
+#choice-message:empty,
 #profile-message:empty,
 #project-dialog-message:empty {
   display: none;
@@ -2285,7 +2285,7 @@ textarea.in {
 .participant-head,
 .participant-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 48px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 48px 48px;
   gap: 8px;
   align-items: center;
 }
@@ -2306,7 +2306,7 @@ textarea.in {
 }
 
 #inspection-edit-view .dialog-buttons .spacer,
-#trades-dialog .dialog-buttons .spacer {
+#choice-dialog .dialog-buttons .spacer {
   flex: 1;
 }
 
@@ -2337,7 +2337,7 @@ textarea.in {
 #report-dialog,
 #inspections-dialog,
 #text-blocks-dialog,
-#trades-dialog,
+#choice-dialog,
 #profile-dialog,
 #project-dialog,
 #camera-dialog {
@@ -2900,7 +2900,7 @@ textarea.in {
   bottom: calc(20px + env(safe-area-inset-bottom));
 }
 
-/* ---------- Auswahlfenster mit Kacheln, z. B. "Gewerk wählen" (trades-dialog.ts) ---------- */
+/* ---------- Auswahlfenster mit Kacheln: Gewerk, Firma, Person (choice-dialog.ts) ---------- */
 .dialog-head {
   display: flex;
   align-items: center;
@@ -2917,14 +2917,14 @@ textarea.in {
   box-shadow: none;
 }
 
-#trades-dialog .dialog-box {
+#choice-dialog .dialog-box {
   display: flex;
   flex-direction: column;
   width: min(620px, 100%);
   height: min(640px, 100%);
 }
 
-#trades-dialog .dialog-hint {
+#choice-dialog .dialog-hint {
   margin: 10px 4px 0;
 }
 
@@ -3008,25 +3008,60 @@ textarea.in {
 }
 
 /* Bearbeiten: rotes Minus oben rechts, Antippen löscht nach Rückfrage */
-.choice.removable {
+/* Bearbeiten: Stift oben rechts, Antippen öffnet den Eintrag zum Ändern oder Löschen */
+.choice.editable {
   padding-right: 38px;
+  box-shadow: inset 0 0 0 1.5px var(--border);
 }
 
-.choice.removable::after {
-  content: '−';
+.choice.editable::after {
+  content: '';
   position: absolute;
   top: 50%;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--danger);
-  color: #fff;
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 23px;
-  text-align: center;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  background: var(--muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4' fill='none' stroke='%23000' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4' fill='none' stroke='%23000' stroke-width='2' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
   transform: translateY(-50%);
+}
+
+/* Name groß, darunter klein Firma und Funktion (Personen) */
+.choice {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.choice-name {
+  display: block;
+}
+
+.choice-sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  opacity: 0.75;
+}
+
+/* Liste und Formular teilen sich den Platz im Fenster */
+.choice-list-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.choice-form {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.choice-form .dialog-buttons {
+  margin-top: 8px;
 }
 
 /* Berichtsfenster: Auswahl der Punkttypen, mehrere gleichzeitig */
@@ -3081,4 +3116,9 @@ textarea.in {
 
 .control-value li::marker {
   color: #3a3591;
+}
+
+/* Das Auswahlfenster öffnet sich auch über anderen Fenstern (z. B. Begehungen) */
+#choice-dialog {
+  z-index: 11;
 }

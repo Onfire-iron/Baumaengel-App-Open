@@ -369,7 +369,7 @@
 
             <textarea id="pin-notes" class="in" rows="3" aria-label="Notizen" placeholder="Notizen"></textarea>
 
-            <!-- Kacheln: Gewerk aus der Liste (trades-dialog.ts), Firma zum Tippen oder Wählen, Termine über die Datumsauswahl des Geräts -->
+            <!-- Kacheln: Gewerk und Firma aus den Listen (choice-dialog.ts), Termine über die Datumsauswahl des Geräts -->
             <div class="tiles">
               <button id="pin-trade-btn" class="tile">
                 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.700 6.300a1 1 0 0 0 0 1.400l1.600 1.600a1 1 0 0 0 1.400 0l3.770-3.770a6 6 0 0 1-7.940 7.940l-6.910 6.910a2.120 2.120 0 0 1-3-3l6.910-6.910a6 6 0 0 1 7.940-7.940z" /></svg>
@@ -379,15 +379,14 @@
                 </span>
                 <svg class="i tile-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
               </button>
-              <label class="tile">
+              <button id="pin-company-btn" class="tile">
                 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V9h6v11M10 20V4h10v16M3 20h18M13.500 8h3M13.500 12h3M13.500 16h3" /></svg>
                 <span class="tile-text">
                   <span class="tile-label">Firma</span>
-                  <input id="pin-company" class="tile-input" type="text" list="company-options" autocomplete="off" placeholder="Wählen" />
+                  <span id="pin-company" class="tile-value"></span>
                 </span>
                 <svg class="i tile-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
-                <datalist id="company-options"></datalist>
-              </label>
+              </button>
               <div class="tile date-tile">
                 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4" /></svg>
                 <span class="tile-text"><span class="tile-label">Festgestellt</span><span class="tile-value"></span></span>
@@ -487,24 +486,50 @@
       </div>
     </div>
 
-    <!-- Fenster "Gewerk wählen", siehe trades-dialog.ts -->
-    <div id="trades-dialog" hidden>
-      <div class="dialog-box glass-thick" role="dialog" aria-labelledby="trades-title">
+    <!-- Auswahlfenster für Gewerk, Firma und Person, siehe choice-dialog.ts -->
+    <div id="choice-dialog" hidden>
+      <div class="dialog-box glass-thick" role="dialog" aria-labelledby="choice-title">
         <div class="dialog-head">
-          <h2 id="trades-title">Gewerk wählen</h2>
-          <button id="trades-edit" class="btn link" aria-pressed="false">Bearbeiten</button>
+          <h2 id="choice-title">Gewerk wählen</h2>
+          <button id="choice-edit" class="btn link" aria-pressed="false">Bearbeiten</button>
         </div>
-        <div class="search-field choice-search">
-          <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.500 17a6.500 6.500 0 1 0 0-13 6.500 6.500 0 0 0 0 13ZM15.300 15.300 20 20" /></svg>
-          <input id="trades-search" type="search" autocomplete="off" enterkeyhint="done" maxlength="60" placeholder="Suchen oder neu eingeben" aria-label="Gewerk suchen oder neu eingeben" />
+        <div id="choice-list-view" class="choice-list-view">
+          <div class="search-field choice-search">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.500 17a6.500 6.500 0 1 0 0-13 6.500 6.500 0 0 0 0 13ZM15.300 15.300 20 20" /></svg>
+            <input id="choice-search" type="search" autocomplete="off" enterkeyhint="done" maxlength="80" placeholder="Suchen oder neu eingeben" aria-label="Suchen oder neu eingeben" />
+          </div>
+          <p id="choice-hint" class="dialog-hint" hidden>Zum Ändern oder Löschen auf einen Eintrag tippen.</p>
+          <div id="choice-grid" class="choice-grid"></div>
         </div>
-        <p id="trades-hint" class="dialog-hint" hidden>Zum Löschen auf ein Gewerk tippen. Mängel behalten ihr Gewerk.</p>
-        <div id="trades-grid" class="choice-grid"></div>
-        <p id="trades-message" role="alert"></p>
-        <div class="dialog-buttons">
-          <button id="trades-clear" class="btn soft">Kein Gewerk</button>
+        <!-- Ändern, Löschen und neue Personen (mit Firma und Funktion) -->
+        <div id="choice-form" class="choice-form" hidden>
+          <label class="field">
+            Name
+            <input id="choice-form-name" type="text" maxlength="80" autocomplete="off" />
+          </label>
+          <div id="choice-person-fields">
+            <label class="field">
+              Firma / Amt
+              <input id="choice-form-company" type="text" maxlength="120" autocomplete="off" list="choice-form-companies" />
+              <datalist id="choice-form-companies"></datalist>
+            </label>
+            <label class="field">
+              Funktion
+              <input id="choice-form-role" type="text" maxlength="80" autocomplete="off" placeholder="z. B. Bauleitung" />
+            </label>
+          </div>
+          <div class="dialog-buttons">
+            <button id="choice-form-delete" class="btn soft danger">Löschen</button>
+            <span class="spacer"></span>
+            <button id="choice-form-cancel" class="btn soft">Abbrechen</button>
+            <button id="choice-form-save" class="btn primary">Speichern</button>
+          </div>
+        </div>
+        <p id="choice-message" role="alert"></p>
+        <div class="dialog-buttons choice-buttons">
+          <button id="choice-clear" class="btn soft">Kein Gewerk</button>
           <span class="spacer"></span>
-          <button id="trades-close" class="btn primary">Schließen</button>
+          <button id="choice-close" class="btn primary">Schließen</button>
         </div>
       </div>
     </div>

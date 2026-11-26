@@ -5,7 +5,7 @@
 import Dexie from 'dexie';
 import type { EntityTable } from 'dexie';
 import { DEFAULT_TEXT_BLOCKS, IMPORTANCE, TRADES, readMarking } from './defects.ts';
-import { defaultEntries, defaultUid, nameKey, newUid } from './master-entries.ts';
+import { defaultEntries, defaultUid, entryKey, nameKey, newUid } from './master-entries.ts';
 import type { PartyKey } from './parties.ts';
 import type {
   Defect,
@@ -207,6 +207,40 @@ db.version(10)
     }
     await tx.table('masterData').bulkAdd([...entries.values()]);
   });
+
+// Firmen und Personen (Etappe 4.31): Die Listen werden einmalig aus dem gefüllt, was schon da ist:
+// Firmen der Mängel, Teilnehmer der Begehungen mit ihrem Amt/Büro/Firma. Keine neue Tabelle nötig.
+db.version(11).stores({}).upgrade(async (tx) => {
+  const now = Date.now();
+  const companies = new Map<string, MasterEntry>();
+  const persons = new Map<string, MasterEntry>();
+  const company = (name: string) => {
+    const clean = name.trim();
+    if (!clean) return undefined;
+    if (!companies.has(nameKey(clean))) {
+      companies.set(nameKey(clean), { uid: newUid(), kind: 'company', name: clean, updatedAt: now, deleted: false });
+    }
+    return companies.get(nameKey(clean))!.uid;
+  };
+  for (const pin of await tx.table('defects').toArray()) if (pin.company) company(pin.company);
+  for (const settings of await tx.table('reportSettings').toArray()) {
+    for (const inspection of settings.inspections ?? []) {
+      for (const { name, org } of inspection.participants ?? []) {
+        if (!name?.trim()) continue;
+        const entry: MasterEntry = {
+          uid: newUid(),
+          kind: 'person',
+          name: name.trim(),
+          ...(org?.trim() ? { companyUid: company(org) } : {}),
+          updatedAt: now,
+          deleted: false,
+        };
+        if (!persons.has(entryKey(entry))) persons.set(entryKey(entry), entry);
+      }
+    }
+  }
+  await tx.table('masterData').bulkAdd([...companies.values(), ...persons.values()]);
+});
 
 // Läuft nur beim allerersten Start, sonst übernehmen das die Umstellungen oben
 db.on('populate', async (tx) => {
@@ -517,20 +551,46 @@ export function allMasterEntries() {
 }
 
 // Legt einen Eintrag an. Gibt es den Namen schon, bleibt es bei dem; war er gelöscht, kommt er zurück.
-export function addMaster(kind: MasterKind, name: string) {
+// Bei Personen gehören Firma (companyUid) und Funktion (role) dazu, siehe entryKey.
+export type MasterExtra = Pick<MasterEntry, 'companyUid' | 'role'>;
+
+export function addMaster(kind: MasterKind, name: string, extra: MasterExtra = {}) {
   return db.transaction('rw', db.masterData, async () => {
-    const key = nameKey(name);
-    const same = (await db.masterData.where('kind').equals(kind).toArray()).filter((e) => nameKey(e.name) === key);
+    const key = entryKey({ kind, name, ...extra });
+    const same = (await db.masterData.where('kind').equals(kind).toArray()).filter((e) => entryKey(e) === key);
     const active = same.find((entry) => !entry.deleted);
     if (active) return active;
     if (same.length) {
-      await db.masterData.update(same[0].uid, { name, deleted: false, updatedAt: Date.now() });
-      return { ...same[0], name, deleted: false };
+      const revived = { ...same[0], ...extra, name, deleted: false, updatedAt: Date.now() };
+      await db.masterData.put(revived);
+      return revived;
     }
-    const entry: MasterEntry = { uid: newUid(), kind, name, updatedAt: Date.now(), deleted: false };
+    const entry: MasterEntry = { uid: newUid(), kind, name, ...extra, updatedAt: Date.now(), deleted: false };
     await db.masterData.add(entry);
     return entry;
   });
+}
+
+// Ändert Name, Firma oder Funktion eines Eintrags. Leere Firma/Funktion werden entfernt.
+export async function updateMaster(uid: string, changes: Partial<Pick<MasterEntry, 'name' | 'companyUid' | 'role'>>) {
+  const entry = await db.masterData.get(uid);
+  if (!entry) return;
+  const next: MasterEntry = { ...entry, ...changes, updatedAt: Date.now() };
+  if (!next.companyUid) delete next.companyUid;
+  if (!next.role) delete next.role;
+  await db.masterData.put(next);
+  return next;
+}
+
+// Person mit Firma (als Name): Die Firma kommt bei Bedarf neu in die Firmenliste
+export async function addPerson(name: string, companyName: string, role = '') {
+  const company = companyName.trim() ? await addMaster('company', companyName.trim()) : null;
+  return addMaster('person', name, { companyUid: company?.uid, role: role.trim() || undefined });
+}
+
+// Firma einer Person als Name, oder leer
+export async function companyNames() {
+  return new Map((await listMaster('company')).map((company) => [company.uid, company.name]));
 }
 
 // Lösch-Vermerk statt Entfernen. Mängel mit diesem Gewerk behalten es, es fehlt nur in der Auswahl.
@@ -545,13 +605,13 @@ export function mergeMaster(incoming: MasterEntry[]) {
   return db.transaction('rw', db.masterData, async () => {
     const local = await db.masterData.toArray();
     const byUid = new Map(local.map((entry) => [entry.uid, entry]));
-    const activeNames = new Set(local.filter((e) => !e.deleted).map((e) => `${e.kind}|${nameKey(e.name)}`));
+    const activeNames = new Set(local.filter((e) => !e.deleted).map(entryKey));
     let added = 0;
     let changed = 0;
     for (const entry of incoming) {
       const known = byUid.get(entry.uid);
       if (!known) {
-        const key = `${entry.kind}|${nameKey(entry.name)}`;
+        const key = entryKey(entry);
         if (activeNames.has(key)) continue;
         await db.masterData.add(entry);
         byUid.set(entry.uid, entry);

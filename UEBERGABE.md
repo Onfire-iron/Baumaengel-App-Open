@@ -201,7 +201,7 @@ src/
   divisions.ts        Bereiche (Büros) mit Logos, gewählter Bereich
   native.ts           nur in der Android-App: Kamera mit Galerie-Album, Speichern in Documents, Links
   text-blocks.ts      Fenster "Textbausteine" (vorerst Platzhalter)
-  trades-dialog.ts    Fenster "Gewerk wählen": Gewerke-Liste mit Suche, Ergänzen, Löschen
+  choice-dialog.ts    Auswahlfenster für Gewerk, Firma, Person: Suche, Ergänzen, Ändern, Löschen
   master-entries.ts   Stammdaten: Aufbau der Einträge, Vorgaben, feste Kennungen
   master-data.ts      Stammdaten als Datei: "Listen sichern" / "Listen einlesen"
   outside-tap.ts      Tippen neben ein Fenster schließt es (wie sein Schließen-Knopf)
@@ -230,7 +230,7 @@ src/
 
 ## Regeln für gespeicherte Daten
 
-**Datenbank (`db.ts`):** Der Name ist `baumaengel`, aktuell gilt Version 10.
+**Datenbank (`db.ts`):** Der Name ist `baumaengel`, aktuell gilt Version 11.
 
 - Bestehende `db.version(...)`-Blöcke nie ändern. Änderungen kommen als neue Version mit `.upgrade(...)`.
 - Geänderte Felder auch in `types.ts` nachziehen.
@@ -343,7 +343,16 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
   dazu (außer der Name ist schon da), sonst gilt die neuere Fassung. Grenze: Legen zwei Geräte denselben
   Namen getrennt an, behält jedes seine uid; ein späteres Löschen gilt dann nur für die eigene.
   Startseite, Menü (Sonne): "Listen sichern" / "Listen einlesen" (JSON, `master-data.ts`).
-- **Gewerke-Liste (seit 4.24):** Die Kachel "Gewerk" öffnet das Fenster "Gewerk wählen" (`trades-dialog.ts`)
+- **Firmen und Personen (seit 4.31):** Weitere Stammdaten-Arten `company` und `person`. Personen haben
+  `companyUid` (ihre Firma) und `role` (Funktion); zwei gleichnamige Personen in verschiedenen Firmen sind
+  zwei Einträge (`entryKey`). DB-Version 11 füllt die Listen einmalig aus vorhandenen Daten (Firmen der
+  Mängel, Teilnehmer der Begehungen). Die Kachel "Firma" im Bearbeitungsfenster öffnet das Auswahlfenster
+  (`choice-dialog.ts`, gemeinsam mit Gewerk). In den Begehungen hat jede Teilnehmerzeile einen Knopf
+  "Aus der Liste wählen" (Name und Firma auf einmal); neue Teilnehmer kommen bei "Fertig" automatisch in
+  die Personenliste (`rememberPeople`). Mängel und Begehungen speichern die Namen weiter als Text, eine
+  Änderung in der Liste ändert also keine alten Berichte. Die Beteiligten (Projekt/Bericht) sind noch
+  freie Textfelder.
+- **Gewerke-Liste (seit 4.24):** Die Kachel "Gewerk" öffnet das Fenster "Gewerk wählen" (seit 4.31 `choice-dialog.ts`)
   mit Kacheln aus den Stammdaten (seit 4.29, vorher Tabelle `trades`; anfangs `TRADES` aus `defects.ts`). Tippen
   wählt, Suchen filtert, ein neuer Name lässt sich direkt hinzufügen, "Bearbeiten" löscht Einträge
   (Mängel behalten ihr Gewerk). Die Liste kommt ins Backup und wird beim Import ergänzt. Erster Test für

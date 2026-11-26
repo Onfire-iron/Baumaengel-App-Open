@@ -14,16 +14,24 @@ import { TRADES } from './defects.ts';
 import { normalize } from './search.ts';
 import type { MasterEntry, MasterKind } from './types.ts';
 
-export const MASTER_KINDS: readonly MasterKind[] = ['trade'];
+export const MASTER_KINDS: readonly MasterKind[] = ['trade', 'company', 'person'];
 
 // Vorgaben je Liste, solange auf dem Gerät noch nichts anderes steht
 const DEFAULTS: Record<MasterKind, readonly string[]> = {
   trade: TRADES,
+  company: [],
+  person: [],
 };
 
 // Gleicher Name heißt gleicher Eintrag: Groß/klein, Umlaute und Leerzeichen egal
 export function nameKey(name: string): string {
   return normalize(name).replace(/\s+/g, ' ').trim();
+}
+
+// Woran zwei Einträge als derselbe erkannt werden: Art und Name, bei Personen zusätzlich die Firma
+// (zwei "Thomas Müller" in verschiedenen Firmen sind zwei Personen)
+export function entryKey(entry: Pick<MasterEntry, 'kind' | 'name' | 'companyUid'>): string {
+  return `${entry.kind}|${nameKey(entry.name)}|${entry.kind === 'person' ? (entry.companyUid ?? '') : ''}`;
 }
 
 export function defaultUid(kind: MasterKind, name: string): string {
@@ -52,11 +60,14 @@ export function readEntry(value: unknown): MasterEntry | null {
   const name = typeof entry.name === 'string' ? entry.name.trim().slice(0, 200) : '';
   if (!name) return null;
   const updatedAt = Number(entry.updatedAt);
+  const text = (value: unknown) => (typeof value === 'string' ? value.trim().slice(0, 200) : '');
   return {
     uid: entry.uid,
     kind: entry.kind as MasterKind,
     name,
     updatedAt: Number.isFinite(updatedAt) && updatedAt >= 0 ? updatedAt : 0,
     deleted: entry.deleted === true,
+    ...(entry.kind === 'person' && text(entry.companyUid) ? { companyUid: text(entry.companyUid) } : {}),
+    ...(entry.kind === 'person' && text(entry.role) ? { role: text(entry.role) } : {}),
   };
 }

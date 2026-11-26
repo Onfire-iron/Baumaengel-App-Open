@@ -90,7 +90,8 @@ export interface TextBlock {
 }
 
 // Stammdaten: Einträge der Listen für alle Projekte, siehe master-entries.ts
-export type MasterKind = 'trade'; // später auch Kontakte, Textbausteine …
+// trade = Gewerk, company = Firma oder Amt, person = Person (gehört zu einer Firma)
+export type MasterKind = 'trade' | 'company' | 'person'; // später auch Textbausteine …
 
 export interface MasterEntry {
   uid: string; // feste Kennung, auf allen Geräten gleich
@@ -98,6 +99,8 @@ export interface MasterEntry {
   name: string;
   updatedAt: number; // Zeitstempel in Millisekunden, die neuere Fassung gilt
   deleted: boolean; // Lösch-Vermerk statt Entfernen
+  companyUid?: string; // nur Personen: ihre Firma (uid eines Eintrags "company")
+  role?: string; // nur Personen: Funktion, z. B. "Bauleitung"
 }
 
 // Begehung: wer an welchem Tag dabei war, siehe inspections.ts

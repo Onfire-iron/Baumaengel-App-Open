@@ -8,10 +8,13 @@
 // Teilnehmer der letzten Begehung. Beim Tippen schlägt die App Namen und Firmen aus allen
 // bisherigen Begehungen vor, und zu einem bekannten Namen wird die Firma ergänzt.
 
+import { openChoiceDialog } from './choice-dialog.ts';
 import * as store from './db.ts';
 import { formatDate, todayIso } from './defects.ts';
 import { cleanParticipants, sortInspections } from './inspections.ts';
+import { nameKey } from './master-entries.ts';
 import { activeProfileName } from './profiles.ts';
+import { setStatus } from './status.ts';
 import type { Inspection, Participant, Project } from './types.ts';
 import { closeOnOutsideTap } from './outside-tap.ts';
 
@@ -48,13 +51,23 @@ export async function openInspectionsDialog(
   dialog.hidden = false;
 }
 
+// Vorschläge beim Tippen: Personen und Firmen aus den Listen (Stammdaten) und aus allen Begehungen
 async function loadSuggestions() {
   const all = [...(await store.getAllReportSettings()).values()].flatMap((s) => s.inspections ?? []);
+  const [persons, companies] = await Promise.all([store.listMaster('person'), store.companyNames()]);
   knownOrgs = new Map();
+  for (const person of persons) {
+    const org = person.companyUid ? companies.get(person.companyUid) : '';
+    if (org) knownOrgs.set(person.name, org);
+  }
   for (const inspection of sortInspections(all)) {
     for (const { name, org } of inspection.participants) if (name && org) knownOrgs.set(name, org);
   }
-  const orgs = new Set(all.flatMap((inspection) => inspection.participants.map((p) => p.org)).filter(Boolean));
+  for (const person of persons) if (!knownOrgs.has(person.name)) knownOrgs.set(person.name, '');
+  const orgs = new Set([
+    ...companies.values(),
+    ...all.flatMap((inspection) => inspection.participants.map((p) => p.org)).filter(Boolean),
+  ]);
   nameSuggestions.replaceChildren(...[...knownOrgs.keys()].sort(byName).map((name) => option(name)));
   orgSuggestions.replaceChildren(...[...orgs].sort(byName).map((org) => option(org)));
 }
@@ -163,6 +176,23 @@ function participantRow(inspection: Inspection, participant: Participant) {
     participant.org = org.value;
     save();
   });
+  // Aus der Personenliste wählen: Name und Firma auf einmal (choice-dialog.ts)
+  const pick = document.createElement('button');
+  pick.className = 'btn icon soft';
+  pick.title = 'Aus der Liste wählen';
+  pick.setAttribute('aria-label', 'Person aus der Liste wählen');
+  pick.innerHTML =
+    '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM3 20a6 6 0 0 1 12 0M17 8h4M17 12h4M17 16h3" /></svg>';
+  pick.addEventListener('click', () => {
+    openChoiceDialog('person', name.value.trim(), (picked) => {
+      name.value = participant.name = picked.name;
+      if (picked.company || !picked.name) org.value = participant.org = picked.company;
+      save();
+    }).catch((err) => {
+      console.error(err);
+      message.textContent = 'Die Personenliste konnte nicht geladen werden.';
+    });
+  });
   const remove = document.createElement('button');
   remove.className = 'btn icon soft';
   remove.textContent = '✕';
@@ -173,7 +203,7 @@ function participantRow(inspection: Inspection, participant: Participant) {
     row.remove();
     save();
   });
-  row.append(name, org, remove);
+  row.append(name, org, pick, remove);
   return row;
 }
 
@@ -190,6 +220,28 @@ function field(value: string, suggestions: string, label: string) {
   return input;
 }
 
+// Neue Teilnehmer kommen in die Personenliste, damit sie beim nächsten Mal zur Auswahl stehen.
+// Gibt es den Namen schon ohne Firma, bekommt er die Firma dazu, statt doppelt angelegt zu werden.
+async function rememberPeople(participants: Participant[]) {
+  const [persons, companies] = await Promise.all([store.listMaster('person'), store.companyNames()]);
+  let added = 0;
+  for (const { name, org } of participants) {
+    if (!name.trim()) continue;
+    const sameName = persons.filter((p) => nameKey(p.name) === nameKey(name));
+    const companyOf = (uid?: string) => nameKey(uid ? (companies.get(uid) ?? '') : '');
+    if (sameName.some((p) => companyOf(p.companyUid) === nameKey(org))) continue;
+    const withoutCompany = sameName.find((p) => !p.companyUid);
+    if (withoutCompany && org.trim()) {
+      const company = await store.addMaster('company', org.trim());
+      await store.updateMaster(withoutCompany.uid, { companyUid: company.uid });
+      continue;
+    }
+    persons.push(await store.addPerson(name.trim(), org));
+    added++;
+  }
+  if (added) setStatus(`${added === 1 ? 'Eine neue Person' : `${added} neue Personen`} in die Liste übernommen.`);
+}
+
 // Zurück zur Liste: leere Zeilen fallen weg, die Reihenfolge folgt dem Datum
 function finishInspection() {
   const { editing, inspections } = current!;
@@ -197,7 +249,9 @@ function finishInspection() {
   sortInspections(inspections);
   current!.editing = null;
   save();
-  loadSuggestions().catch(console.error);
+  rememberPeople(editing!.participants)
+    .then(() => loadSuggestions())
+    .catch(console.error);
   showList();
 }
 
