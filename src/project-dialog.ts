@@ -7,7 +7,8 @@
 
 import * as store from './db.ts';
 import { DIVISIONS, NO_DIVISION, activeDivision } from './divisions.ts';
-import { PARTIES, createPartyFields } from './parties.ts';
+import { createPartyFields } from './party-fields.ts';
+import { PARTIES } from './parties.ts';
 import type { Project } from './types.ts';
 import { closeOnOutsideTap } from './outside-tap.ts';
 

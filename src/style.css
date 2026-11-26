@@ -3122,3 +3122,30 @@ textarea.in {
 #choice-dialog {
   z-index: 11;
 }
+
+/* Umschalter Firmen / Personen im Auswahlfenster */
+.choice-kinds {
+  margin-bottom: 12px;
+}
+
+.choice-kinds .seg-btn {
+  min-height: 44px;
+  font-size: 14px;
+}
+
+.choice-kinds.locked {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* "Aus der Liste" neben den Beteiligten-Feldern: klein, damit die Felder ruhig bleiben */
+.pick-btn {
+  min-height: 32px;
+  padding: 0 4px;
+  font-size: 13px;
+}
+
+.field > .field-head + input,
+.field > .field-head + textarea {
+  margin-top: 6px;
+}

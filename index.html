@@ -493,6 +493,11 @@
           <h2 id="choice-title">Gewerk wählen</h2>
           <button id="choice-edit" class="btn link" aria-pressed="false">Bearbeiten</button>
         </div>
+        <!-- Nur wenn mehrere Listen passen, z. B. bei den Beteiligten -->
+        <div id="choice-kinds" class="segmented choice-kinds" hidden>
+          <button class="seg-btn plain" data-kind="company" aria-pressed="false">Firmen / Ämter</button>
+          <button class="seg-btn plain" data-kind="person" aria-pressed="false">Personen</button>
+        </div>
         <div id="choice-list-view" class="choice-list-view">
           <div class="search-field choice-search">
             <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.500 17a6.500 6.500 0 1 0 0-13 6.500 6.500 0 0 0 0 13ZM15.300 15.300 20 20" /></svg>

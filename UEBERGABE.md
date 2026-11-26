@@ -202,6 +202,7 @@ src/
   native.ts           nur in der Android-App: Kamera mit Galerie-Album, Speichern in Documents, Links
   text-blocks.ts      Fenster "Textbausteine" (vorerst Platzhalter)
   choice-dialog.ts    Auswahlfenster für Gewerk, Firma, Person: Suche, Ergänzen, Ändern, Löschen
+  party-fields.ts     Eingabefelder der Beteiligten mit "Aus der Liste" (Projekt- und Berichtsfenster)
   master-entries.ts   Stammdaten: Aufbau der Einträge, Vorgaben, feste Kennungen
   master-data.ts      Stammdaten als Datei: "Listen sichern" / "Listen einlesen"
   outside-tap.ts      Tippen neben ein Fenster schließt es (wie sein Schließen-Knopf)
@@ -350,8 +351,10 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
   (`choice-dialog.ts`, gemeinsam mit Gewerk). In den Begehungen hat jede Teilnehmerzeile einen Knopf
   "Aus der Liste wählen" (Name und Firma auf einmal); neue Teilnehmer kommen bei "Fertig" automatisch in
   die Personenliste (`rememberPeople`). Mängel und Begehungen speichern die Namen weiter als Text, eine
-  Änderung in der Liste ändert also keine alten Berichte. Die Beteiligten (Projekt/Bericht) sind noch
-  freie Textfelder.
+  Änderung in der Liste ändert also keine alten Berichte. Die Beteiligten (Projekt/Bericht) bleiben
+  freie Textfelder, haben aber seit 4.32 "Aus der Liste" (Umschalter Firmen/Personen im Auswahlfenster;
+  eine Person wird als "Name" und darunter "Firma" eingetragen). Neue Begehung (seit 4.32): Die Teilnehmer
+  der letzten Begehung, dazu ganz oben das gewählte Profil mit seiner Firma, falls es noch fehlt.
 - **Gewerke-Liste (seit 4.24):** Die Kachel "Gewerk" öffnet das Fenster "Gewerk wählen" (seit 4.31 `choice-dialog.ts`)
   mit Kacheln aus den Stammdaten (seit 4.29, vorher Tabelle `trades`; anfangs `TRADES` aus `defects.ts`). Tippen
   wählt, Suchen filtert, ein neuer Name lässt sich direkt hinzufügen, "Bearbeiten" löscht Einträge

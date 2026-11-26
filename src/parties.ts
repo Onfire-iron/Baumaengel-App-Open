@@ -8,6 +8,7 @@
 // anderen. Im Bericht erscheinen sie auf dem Deckblatt unter "Projektangaben" (drawProjectInfo in report.ts),
 // leere Felder nicht. Die Projektnummer steht stattdessen auf dem Deckblatt und in der Kopfzeile.
 // multiline: mehrzeiliges Feld (z. B. Name und Anschrift), sonst eine Zeile.
+// Die Eingabefelder dazu baut party-fields.ts.
 
 export const PARTIES = [
   { key: 'owner', label: 'Bauherrschaft', multiline: true },
@@ -20,34 +21,6 @@ export const PARTIES = [
 
 export type PartyKey = (typeof PARTIES)[number]['key'];
 
-// Die Projektnummer steht im Bericht auf dem Deckblatt unter der Adresse, die übrigen Angaben auf
-// in den Projektangaben darunter
+// Die Projektnummer steht im Bericht auf dem Deckblatt unter der Adresse, die übrigen Angaben in den
+// Projektangaben darunter
 export const INFO_PAGE_PARTIES = PARTIES.filter(({ key }) => key !== 'projectNumber');
-
-export type PartyFields = Record<PartyKey, HTMLTextAreaElement | HTMLInputElement>;
-
-// Baut die Textfelder in container ein. idPrefix unterscheidet die beiden Fenster.
-export function createPartyFields(container: HTMLElement, idPrefix: string): PartyFields {
-  const fields = {} as PartyFields;
-  container.replaceChildren(
-    ...PARTIES.map(({ key, label, multiline }) => {
-      const field = document.createElement('label');
-      field.className = 'field';
-      let input: HTMLTextAreaElement | HTMLInputElement;
-      if (multiline) {
-        input = document.createElement('textarea');
-        input.rows = 2;
-      } else {
-        input = document.createElement('input');
-        input.type = 'text';
-        input.maxLength = 60;
-      }
-      input.id = `${idPrefix}-${key}`;
-      input.autocomplete = 'off';
-      field.append(label, input);
-      fields[key] = input;
-      return field;
-    })
-  );
-  return fields;
-}

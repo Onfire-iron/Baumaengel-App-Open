@@ -122,13 +122,14 @@ function newInspection() {
     showInspection(existing);
     return;
   }
+  // Die Teilnehmer der letzten Begehung, dazu ganz oben der Name des gewählten Profils (wer die App
+  // gerade bedient), falls er noch fehlt. Seine Firma kommt aus der Personenliste. Wieder entfernbar mit ✕.
   const last = inspections.at(-1);
   const profile = activeProfileName();
-  const participants: Participant[] = last
-    ? last.participants.map((p) => ({ ...p }))
-    : profile
-      ? [{ name: profile, org: knownOrgs.get(profile) ?? '' }]
-      : [];
+  const participants: Participant[] = last ? last.participants.map((p) => ({ ...p })) : [];
+  if (profile && !participants.some((p) => nameKey(p.name) === nameKey(profile))) {
+    participants.unshift({ name: profile, org: knownOrgs.get(profile) ?? '' });
+  }
   if (!participants.length) participants.push({ name: '', org: '' });
   const inspection: Inspection = { date: today, participants };
   inspections.push(inspection);

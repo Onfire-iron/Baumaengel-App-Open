@@ -15,6 +15,7 @@ import { normalize, searchWords } from './search.ts';
 import type { MasterEntry, MasterKind } from './types.ts';
 
 export interface Picked {
+  kind: MasterKind; // aus welcher Liste (wichtig, wenn zwischen Firmen und Personen umgeschaltet wurde)
   name: string;
   company: string; // nur bei Personen: Name ihrer Firma
   role: string; // nur bei Personen
@@ -70,6 +71,8 @@ const personFields = document.getElementById('choice-person-fields') as HTMLElem
 const formDelete = document.getElementById('choice-form-delete') as HTMLButtonElement;
 const formSave = document.getElementById('choice-form-save') as HTMLButtonElement;
 const listButtons = dialog.querySelector('.choice-buttons') as HTMLElement;
+const kindSwitch = document.getElementById('choice-kinds') as HTMLElement;
+const kindButtons = kindSwitch.querySelectorAll<HTMLButtonElement>('[data-kind]');
 
 let kind: MasterKind = 'trade';
 let entries: MasterEntry[] = [];
@@ -93,27 +96,42 @@ function companyOf(entry: MasterEntry) {
   return entry.companyUid ? (companies.get(entry.companyUid) ?? '') : '';
 }
 
-// Das Suchfeld bekommt bewusst keinen Fokus: Die iPad-Tastatur würde die Kacheln verdecken
+// Das Suchfeld bekommt bewusst keinen Fokus: Die iPad-Tastatur würde die Kacheln verdecken.
+// Mehrere Listen (z. B. Firmen und Personen für die Beteiligten): oben ein Umschalter, die erste gilt zuerst.
 export async function openChoiceDialog(
-  listKind: MasterKind,
+  listKind: MasterKind | MasterKind[],
   value: string,
   pick: (picked: Picked) => void
 ): Promise<void> {
-  kind = listKind;
-  [entries, companies] = await Promise.all([store.listMaster(kind), store.companyNames()]);
+  const kinds = Array.isArray(listKind) ? listKind : [listKind];
+  kindSwitch.hidden = kinds.length < 2;
+  kindButtons.forEach((btn) => (btn.hidden = !kinds.includes(btn.dataset.kind as MasterKind)));
   current = value;
   onPick = pick;
+  clearBtn.disabled = !value;
+  dialog.hidden = false;
+  await switchKind(kinds[0]);
+}
+
+async function switchKind(next: MasterKind) {
+  kind = next;
+  [entries, companies] = await Promise.all([store.listMaster(kind), store.companyNames()]);
   title.textContent = TEXT[kind].title;
   clearBtn.textContent = TEXT[kind].none;
-  clearBtn.disabled = !value;
+  kindButtons.forEach((btn) => {
+    const active = btn.dataset.kind === kind;
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', String(active));
+  });
   search.value = '';
   message.textContent = '';
   dialog.dataset.kind = kind;
   showForm(null, false);
   setEditing(false);
-  dialog.hidden = false;
   grid.scrollTop = 0;
 }
+
+kindButtons.forEach((btn) => btn.addEventListener('click', () => switchKind(btn.dataset.kind as MasterKind)));
 
 function close() {
   dialog.hidden = true;
@@ -121,7 +139,7 @@ function close() {
 }
 
 function choose(entry: MasterEntry | null, name: string) {
-  onPick?.({ name, company: entry ? companyOf(entry) : '', role: entry?.role ?? '' });
+  onPick?.({ kind, name, company: entry ? companyOf(entry) : '', role: entry?.role ?? '' });
   close();
 }
 
@@ -219,6 +237,7 @@ function showForm(entry: MasterEntry | null, visible: boolean, name = '') {
   // Solange das Formular offen ist, gelten nur seine Knöpfe
   listButtons.hidden = visible;
   editBtn.hidden = visible;
+  kindSwitch.classList.toggle('locked', visible);
   if (!visible) return;
   personFields.hidden = kind !== 'person';
   formName.value = entry?.name ?? name;
