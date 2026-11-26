@@ -205,6 +205,7 @@ src/
   master-entries.ts   Stammdaten: Aufbau der Einträge, Vorgaben, feste Kennungen
   master-data.ts      Stammdaten als Datei: "Listen sichern" / "Listen einlesen"
   outside-tap.ts      Tippen neben ein Fenster schließt es (wie sein Schließen-Knopf)
+  history.ts          Rückgängig/Wiederholen: Verlauf der Änderungen an Mängeln
   control-fields.ts   Angaben zur Baukontrolle: Vorgaben, feste Texte, Aufzählungen erkennen
   bullet-field.ts     Textfeld mit Aufzählungspunkten ("• Aufzählung", Enter setzt fort)
   date-tile.ts        Datumskachel (Datum als Text, unsichtbares Datumsfeld darüber)
@@ -347,7 +348,7 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
   wählt, Suchen filtert, ein neuer Name lässt sich direkt hinzufügen, "Bearbeiten" löscht Einträge
   (Mängel behalten ihr Gewerk). Die Liste kommt ins Backup und wird beim Import ergänzt. Erster Test für
   die geplanten Auswahlfenster für Firmen und Namen.
-- **Punkt-Menü (Schnellerfassung und Bearbeitungsfenster):** Seit 4.24 im neuen Aufbau: Überschrift oben,
+- **Punkt-Menü (Schnellerfassung und Bearbeitungsfenster):** Seit 4.24 im neuen Aufbau (Aktionen der Schnellerfassung seit 4.30 untereinander: "Nächster Punkt", darunter "Nochmal setzen" und "Alle Details", dann "Schließen"): Überschrift oben,
   Foto aufnehmen und Aus Galerie nebeneinander, darunter die Miniaturen; Textbaustein als Kachel; Gewerk, Firma,
   Festgestellt und Frist als Kacheln im Raster (Firma noch als Eingabefeld mit Vorschlägen). Die Datumskacheln zeigen das Datum als Text, darüber liegt
   unsichtbar das Datumsfeld (`.date-tile`), das am Finger die Auswahl des Geräts öffnet und am Rechner per
@@ -382,6 +383,18 @@ einem eigenen Ordner (`projekte/01 Name/`) mit genau dem Inhalt eines einzelnen 
   Ausnahmen: Während der Bericht entsteht, bleibt das Fenster offen. Im Projektfenster wird bei
   geänderten Eingaben erst nachgefragt. Eine offene Begehung wird vorher wie mit "Fertig" abgeschlossen.
   Bearbeitungsfenster, Schnellerfassung und Mängelliste schließt ein Tipp auf eine freie Stelle im Plan.
+- **Rückgängig/Wiederholen (seit 4.30):** Pfeile links in der unteren Leiste, am Rechner Strg+Z/Strg+Y
+  (in Textfeldern bleibt es beim Rückgängig des Browsers). Jeder Schritt merkt sich den Mangel vorher und
+  nachher (`history.ts`), bei Foto-Änderungen auch die Fotos samt Bilddaten. Abgedeckt: Punkt setzen,
+  duplizieren, verschieben, löschen, alle Felder, Fotos hinzufügen/löschen. Nicht: Pläne, Projekt- und
+  Berichtsangaben, Markierungen im Foto-Editor. Tippen im selben Feld wird zu einem Schritt zusammengefasst
+  (Pause 2,5 s oder Feld verlassen). Der Verlauf lebt nur im Arbeitsspeicher, gilt für das geöffnete Projekt,
+  höchstens 50 Schritte. Wiederherstellen über `restorePin`/`removePin` in `db.ts`. Wird ein gerade
+  gesetzter Punkt zurückgenommen und war er der zuletzt nummerierte, wird seine Nummer wieder frei.
+- **Duplizieren (seit 4.30):** "Nochmal setzen" in der Schnellerfassung und "Punkt duplizieren" im
+  Bearbeitungsfenster (für jeden Punkt, jederzeit). Danach auf den Plan tippen (auch nach Planwechsel).
+  Übernommen: Überschrift, Notizen, Art, Gewerk, Firma. Neu: Nummer, Fotos leer, Festgestellt heute,
+  keine Frist, nicht erledigt (`duplicateSource` in `main.ts`).
 - **Sperre der Punkte:** Gesetzte Punkte lassen sich nicht einfach ziehen (sonst verrutschen sie bei
   einem Vertipper auf der Baustelle). Zum Verschieben im Bearbeitungsfenster "Verschieben" einschalten.
   Die Freigabe gilt nur für diesen einen Punkt und endet, sobald er abgewählt wird. Ein gerade neu

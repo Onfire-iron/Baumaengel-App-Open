@@ -418,6 +418,39 @@ export function savePin(pin: Defect) {
   return db.defects.put(pin);
 }
 
+// Rückgängig/Wiederholen (history.ts): bringt einen Mangel genau auf einen früheren Stand, mit
+// derselben id und Nummer. photos: die Fotos des Mangels genau auf diesen Stand bringen (fehlt = Fotos
+// bleiben, wie sie sind). Der Zähler für neue Nummern läuft dabei mit.
+export function restorePin(pin: Defect, photos?: Photo[]) {
+  return db.transaction('rw', db.projects, db.defects, db.photos, async () => {
+    await db.defects.put(pin);
+    if (photos) {
+      await db.photos.where('pinId').equals(pin.id).delete();
+      await db.photos.bulkPut(photos);
+    }
+    const project = await db.projects.get(pin.projectId);
+    await db.projects.update(pin.projectId, {
+      nextDefectNumber: Math.max(project?.nextDefectNumber ?? 1, pin.number + 1),
+      updatedAt: Date.now(),
+    });
+  });
+}
+
+// Entfernt einen Mangel mit seinen Fotos wie deletePin. releaseNumber: Der Mangel wird gerade
+// "ungesetzt" (Rückgängig nach dem Setzen). War er der zuletzt nummerierte, wird seine Nummer wieder frei.
+export function removePin(pin: Defect, releaseNumber: boolean) {
+  return db.transaction('rw', db.projects, db.defects, db.photos, async () => {
+    await db.defects.delete(pin.id);
+    await db.photos.where('pinId').equals(pin.id).delete();
+    const project = await db.projects.get(pin.projectId);
+    const release = releaseNumber && project?.nextDefectNumber === pin.number + 1;
+    await db.projects.update(pin.projectId, {
+      ...(release ? { nextDefectNumber: pin.number } : {}),
+      updatedAt: Date.now(),
+    });
+  });
+}
+
 export function deletePin(pin: Defect) {
   touchProject(pin.projectId);
   return db.transaction('rw', db.defects, db.photos, async () => {

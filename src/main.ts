@@ -35,6 +35,18 @@ import { setStatus } from './status.ts';
 import { openTextBlocks } from './text-blocks.ts';
 import { openTradesDialog } from './trades-dialog.ts';
 import { initDateTile, showDate } from './date-tile.ts';
+import {
+  clearHistory,
+  endMerge,
+  nextRedo,
+  nextUndo,
+  onHistoryChange,
+  record,
+  redo,
+  snapshot,
+  undo,
+} from './history.ts';
+import type { PinState, Step } from './history.ts';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import type { Defect, Importance, Photo, Plan, Project } from './types.ts';
 
@@ -150,6 +162,10 @@ const capture = document.getElementById('capture') as HTMLElement;
 const captureBadge = document.getElementById('capture-badge') as HTMLElement;
 const captureTitle = document.getElementById('capture-title') as HTMLInputElement;
 const capturePhotos = document.getElementById('capture-photos') as HTMLElement;
+const undoBtn = document.getElementById('undo-btn') as HTMLButtonElement;
+const redoBtn = document.getElementById('redo-btn') as HTMLButtonElement;
+const duplicateBtn = document.getElementById('duplicate-btn') as HTMLButtonElement;
+const PLACE_HINT = placeHint.textContent;
 
 // ---------- Zustand der App ----------
 let currentProject: Project | null = null;
@@ -174,6 +190,8 @@ let selectedId: number | null = null;
 // Die Freigabe gilt für einen einzigen Punkt und endet, sobald er nicht mehr ausgewählt ist.
 // Sie wird nicht gespeichert, nach dem Neuladen ist also wieder alles gesperrt.
 let movableId: number | null = null;
+let duplicateSource: Defect | null = null; // "Duplizieren": Vorlage für den nächsten gesetzten Punkt
+let dragBefore: PinState | null = null; // Stand vor dem Ziehen, für Rückgängig
 let lockHintShown = false; // Hinweis auf die Sperre nur einmal pro Sitzung zeigen
 let thumbUrls: string[] = []; // Adressen der gerade angezeigten Foto-Miniaturen
 let listLevel: Importance | null = null; // Filter für Liste und Plan: nur diese Wichtigkeit, null = alle
@@ -254,6 +272,7 @@ function leaveProject() {
   selectPin(null);
   closeList();
   setPlacing(false);
+  clearHistory(); // der Verlauf gilt nur für das geöffnete Projekt
   currentProject = null;
   currentPlan = null;
   plans = [];
@@ -866,6 +885,7 @@ viewport.addEventListener('pointerdown', (e) => {
     const id = Number(pinEl.dataset.id);
     const pin = pins.find((p) => p.id === id)!;
     const pos = screenToPage(e.clientX, e.clientY);
+    dragBefore = snapshot(pin);
     gesture = {
       type: 'drag-pin',
       id,
@@ -983,7 +1003,12 @@ function showLockHint() {
 function savePinIfDragged() {
   if (gesture?.type !== 'drag-pin' || !gesture.moved) return;
   const pin = pins.find((p) => p.id === (gesture as DragPinGesture).id);
-  if (pin) savePin(pin);
+  if (!pin) return;
+  savePin(pin);
+  if (dragBefore?.pin.id === pin.id) {
+    record({ label: `Punkt ${pin.number} verschoben`, pinId: pin.id, before: dragBefore, after: snapshot(pin) });
+  }
+  dragBefore = snapshot(pin); // Ein weiteres Ziehen ist ein neuer Schritt
 }
 
 viewport.addEventListener('pointerup', endPointer);
@@ -1002,8 +1027,12 @@ modeBtn.addEventListener('click', () => {
 
 function setPlacing(value: boolean) {
   placing = value;
+  if (!placing) duplicateSource = null;
   modeBtn.classList.toggle('active', placing);
   modeLabel.textContent = placing ? 'Fertig' : 'Punkt setzen';
+  placeHint.textContent = duplicateSource
+    ? `Tippe auf den Plan, wo die Kopie von Punkt ${duplicateSource.number} hin soll`
+    : PLACE_HINT;
   placeHint.hidden = !placing;
   viewport.classList.toggle('placing', placing);
 }
@@ -1027,6 +1056,9 @@ async function addPin(clientX: number, clientY: number) {
     setStatus('Bitte innerhalb des Plans tippen.');
     return;
   }
+  // Beim Duplizieren kommen Überschrift, Notizen, Art, Gewerk und Firma von der Vorlage. Fotos, Frist und
+  // "Erledigt" nicht: Die gehören zum einzelnen Mangel und sollen bewusst neu gesetzt werden.
+  const source = duplicateSource;
   // id und Nummer kommen erst beim Speichern dazu
   const pin = {
     projectId: currentProject!.id,
@@ -1034,12 +1066,12 @@ async function addPin(clientX: number, clientY: number) {
     page: currentPage,
     x: pos.x,
     y: pos.y,
-    title: '',
-    notes: '',
-    importance: DEFAULT_IMPORTANCE,
+    title: source?.title ?? '',
+    notes: source?.notes ?? '',
+    importance: source?.importance ?? DEFAULT_IMPORTANCE,
     done: false,
-    trade: '',
-    company: '',
+    trade: source?.trade ?? '',
+    company: source?.company ?? '',
     foundAt: todayIso(),
     dueDate: null,
     doneAt: null,
@@ -1053,6 +1085,12 @@ async function addPin(clientX: number, clientY: number) {
     return;
   }
   pins.push(pin);
+  record({
+    label: source ? `Punkt ${pin.number} (Kopie von ${source.number}) gesetzt` : `Punkt ${pin.number} gesetzt`,
+    pinId: pin.id,
+    before: null,
+    after: snapshot(pin, []),
+  });
   if (listLevel && listLevel !== pin.importance) listLevel = null; // sonst wäre der neue Punkt gleich weg
   setPlacing(false);
   selectPin(pin.id);
@@ -1068,23 +1106,36 @@ async function deleteSelected() {
   const pin = getSelectedPin();
   if (!pin) return;
 
-  // Nur nachfragen, wenn beim Löschen auch Eingaben verloren gehen
-  const photoCount = await store.countPhotos(pin.id).catch(() => 0);
+  // Nur nachfragen, wenn beim Löschen auch Eingaben verloren gehen. Die Fotos kommen mit in den
+  // Verlauf, damit "Rückgängig" den Mangel vollständig zurückbringt.
+  let photos: Photo[];
+  try {
+    photos = await store.getPhotos(pin.id);
+  } catch (err) {
+    console.error(err);
+    setStatus('Löschen fehlgeschlagen.');
+    return;
+  }
   if (
-    (pin.title || pin.notes || photoCount > 0) &&
-    !confirm(`Mangel ${getPinNumber(pin)} mit Text und ${photoCount} Foto(s) wirklich löschen?`)
+    (pin.title || pin.notes || photos.length > 0) &&
+    !confirm(`Mangel ${getPinNumber(pin)} mit Text und ${photos.length} Foto(s) wirklich löschen?`)
   ) {
     return;
   }
 
+  const before = snapshot(pin, photos);
   pins = pins.filter((p) => p.id !== pin.id);
   selectPin(null);
   renderList();
-  setStatus('Punkt gelöscht.');
-  store.deletePin(pin).catch((err) => {
+  try {
+    await store.deletePin(pin);
+  } catch (err) {
     console.error(err);
     setStatus('Löschen fehlgeschlagen.');
-  });
+    return;
+  }
+  record({ label: `Punkt ${pin.number} gelöscht`, pinId: pin.id, before, after: null });
+  setStatus('Punkt gelöscht. Rückgängig mit dem Pfeil unten.');
 }
 
 function selectPin(id: number | null) {
@@ -1255,6 +1306,11 @@ document.getElementById('capture-next')!.addEventListener('click', () => {
   selectPin(null);
   setPlacing(true);
 });
+// "Nochmal setzen": denselben Mangel gleich noch einmal, z. B. bei mehreren gleichen Türen
+document.getElementById('capture-duplicate')!.addEventListener('click', () => {
+  const pin = getSelectedPin();
+  if (pin) startDuplicate(pin);
+});
 capture.addEventListener('focusout', () => window.scrollTo(0, 0));
 
 function fillPanel() {
@@ -1311,21 +1367,31 @@ function setPressed(btn: HTMLElement, pressed: boolean) {
 
 panelClose.addEventListener('click', () => selectPin(null));
 
+// Jede Änderung an einem Mangel läuft hierüber: speichern und als Schritt für Rückgängig merken.
+// mergeKey fasst Tippen im selben Feld zu einem Schritt zusammen (history.ts).
+function changePin(pin: Defect, what: string, change: () => void, mergeKey?: string) {
+  const before = snapshot(pin);
+  change();
+  savePin(pin);
+  record({ label: `${what} von Punkt ${pin.number}`, pinId: pin.id, before, after: snapshot(pin), mergeKey });
+}
+
 // Jede Eingabe wird sofort gespeichert, es gibt keinen "Speichern"-Knopf
 for (const input of [titleInput, captureTitle]) {
   input.addEventListener('input', () => {
     const pin = getSelectedPin()!;
-    pin.title = input.value;
-    savePin(pin);
+    changePin(pin, 'Überschrift', () => (pin.title = input.value), `title:${pin.id}`);
     renderList();
   });
 }
 
 notesInput.addEventListener('input', () => {
   const pin = getSelectedPin()!;
-  pin.notes = notesInput.value;
-  savePin(pin);
+  changePin(pin, 'Notizen', () => (pin.notes = notesInput.value), `notes:${pin.id}`);
 });
+
+// Verlässt man ein Feld, ist das Tippen dort ein abgeschlossener Schritt
+for (const input of [titleInput, captureTitle, notesInput, companyInput]) input.addEventListener('blur', endMerge);
 
 textBlocksBtn.addEventListener('click', openTextBlocks);
 
@@ -1339,8 +1405,7 @@ tradeBtn.addEventListener('click', () => {
   if (!pin) return;
   openTradesDialog(pin.trade, (trade) => {
     if (!pins.includes(pin)) return; // inzwischen gelöscht
-    pin.trade = trade;
-    savePin(pin);
+    changePin(pin, 'Gewerk', () => (pin.trade = trade));
     if (selectedId === pin.id) showTrade(pin);
     renderList();
   }).catch((err) => {
@@ -1366,9 +1431,9 @@ for (const [input, key, read] of detailFields) {
     const pin = getSelectedPin()!;
     // Firma liefert immer Text, nur Datumsfelder können null werden (siehe detailFields).
     // TypeScript kann das je Feld nicht nachvollziehen, darum die Angabe "as string".
-    pin[key] = read(input.value) as string;
+    const what = { company: 'Firma', foundAt: 'Festgestellt', dueDate: 'Frist', doneAt: 'Erledigt am' }[key];
+    changePin(pin, what, () => (pin[key] = read(input.value) as string), key === 'company' ? `company:${pin.id}` : undefined);
     if (input.type === 'date') showDate(input);
-    savePin(pin);
     showMarking(pin);
     renderList();
   });
@@ -1390,17 +1455,16 @@ for (const input of [companyInput]) {
   });
 }
 
-function changeMarking(changes: Partial<Defect>) {
+function changeMarking(changes: Partial<Defect>, what: string) {
   const pin = getSelectedPin()!;
-  Object.assign(pin, changes);
-  savePin(pin);
+  changePin(pin, what, () => Object.assign(pin, changes));
   showMarking(pin);
   renderPins();
   renderList();
 }
 
 importanceBtns.forEach((btn) => {
-  btn.addEventListener('click', () => changeMarking({ importance: btn.dataset.importance as Importance }));
+  btn.addEventListener('click', () => changeMarking({ importance: btn.dataset.importance as Importance }, 'Art'));
 });
 // ---------- Sperre gegen versehentliches Verschieben ----------
 
@@ -1424,11 +1488,112 @@ function showMovable() {
 
 doneBtn.addEventListener('click', () => {
   const done = !getSelectedPin()!.done;
-  changeMarking({ done, doneAt: done ? todayIso() : null });
+  changeMarking({ done, doneAt: done ? todayIso() : null }, 'Erledigt');
 });
 
 // iPad: Die Tastatur schiebt die Seite manchmal nach oben. Danach wieder zurückholen.
 panel.addEventListener('focusout', () => window.scrollTo(0, 0));
+
+// ---------- Duplizieren ----------
+
+// Die Vorlage merken und auf den Plan tippen lassen. Das geht mit jedem Punkt, jederzeit, auch auf
+// einem anderen Plan (vor dem Tippen den Plan wechseln). Abbrechen mit "Fertig".
+function startDuplicate(source: Defect) {
+  selectPin(null);
+  duplicateSource = { ...source };
+  setPlacing(true);
+}
+
+duplicateBtn.addEventListener('click', () => {
+  const pin = getSelectedPin();
+  if (pin) startDuplicate(pin);
+});
+
+// ---------- Rückgängig und Wiederholen, siehe history.ts ----------
+
+let historyBusy = false;
+
+// Bringt einen Mangel auf den Stand target (null = gibt es nicht) und zeigt das Ergebnis
+async function applyHistory(target: PinState | null, step: Step) {
+  const current = pins.find((p) => p.id === step.pinId);
+  if (target) {
+    const pin = { ...target.pin };
+    await store.restorePin(pin, target.photos?.map((photo) => ({ ...photo })));
+    if (current) Object.assign(current, pin);
+    else pins.push(pin);
+  } else if (current) {
+    // Wird ein gerade gesetzter Punkt zurückgenommen, wird seine Nummer wieder frei
+    await store.removePin(current, step.before === null);
+    pins = pins.filter((p) => p !== current);
+  }
+}
+
+async function runHistory(direction: 'undo' | 'redo') {
+  if (historyBusy || !currentProject) return;
+  historyBusy = true;
+  endMerge();
+  try {
+    const step = direction === 'undo' ? await undo(applyHistory) : await redo(applyHistory);
+    if (step) showHistoryResult(step, direction === 'undo' ? 'Rückgängig' : 'Wiederholt');
+  } catch (err) {
+    console.error(err);
+    setStatus('Das ließ sich nicht rückgängig machen. Ist der Speicher voll?');
+  } finally {
+    historyBusy = false;
+    showHistoryButtons();
+  }
+}
+
+function showHistoryResult(step: Step, verb: string) {
+  const pin = pins.find((p) => p.id === step.pinId);
+  if (!pin) {
+    if (selectedId === step.pinId) selectPin(null);
+  } else if (selectedId === pin.id) {
+    if (!panel.hidden) fillPanel();
+    if (!capture.hidden) {
+      captureTitle.value = pin.title;
+      showMarking(pin);
+      renderPhotos();
+    }
+  }
+  renderPins();
+  renderList();
+  // Liegt der Punkt auf einem anderen Plan oder einer anderen Seite, sagen wir wo
+  const plan = pin && !isOnCurrentPage(pin) ? plans.find((p) => p.id === pin.planId) : null;
+  const where = plan ? ` (auf ${plan.name}${(plan.pageCount ?? 1) > 1 ? `, Seite ${pin!.page}` : ''})` : '';
+  setStatus(`${verb}: ${step.label}${where}`);
+}
+
+function showHistoryButtons() {
+  const back = nextUndo();
+  const forward = nextRedo();
+  undoBtn.disabled = !back || historyBusy;
+  redoBtn.disabled = !forward || historyBusy;
+  undoBtn.title = back ? `Rückgängig: ${back.label}` : 'Rückgängig';
+  redoBtn.title = forward ? `Wiederholen: ${forward.label}` : 'Wiederholen';
+  undoBtn.setAttribute('aria-label', undoBtn.title);
+  redoBtn.setAttribute('aria-label', redoBtn.title);
+}
+
+onHistoryChange(showHistoryButtons);
+undoBtn.addEventListener('click', () => runHistory('undo'));
+redoBtn.addEventListener('click', () => runHistory('redo'));
+
+// Am Rechner: Strg+Z / Strg+Y (bzw. Strg+Umschalt+Z, am Mac mit Cmd). In Textfeldern bleibt es beim
+// Rückgängig des Browsers für den Text selbst.
+window.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey) || projectView.hidden) return;
+  if ((e.target as Element).closest('input, textarea, select')) return;
+  if (document.querySelector('#photo-editor:not([hidden]), [id$="-dialog"]:not([hidden])')) return; // Fenster offen
+  const key = e.key.toLowerCase();
+  if (key === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    runHistory('undo');
+  } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+    e.preventDefault();
+    runHistory('redo');
+  }
+});
 
 // ---------- Fotos ----------
 
@@ -1482,6 +1647,8 @@ photoGalleryBtn.addEventListener('click', () => photoGallery.click());
 async function addPhotos(files: Blob[]) {
   const pin = getSelectedPin()!;
   let failed = 0;
+  // Für Rückgängig: die Fotos vorher und nachher, alle in einem Schritt
+  const before = snapshot(pin, await store.getPhotos(pin.id).catch(() => []));
 
   for (const [index, file] of files.entries()) {
     setStatus(`Foto ${index + 1} von ${files.length} wird verkleinert …`);
@@ -1494,6 +1661,17 @@ async function addPhotos(files: Blob[]) {
       console.error(err);
       failed++;
     }
+  }
+
+  if (failed < files.length && pins.includes(pin)) {
+    const after = snapshot(pin, await store.getPhotos(pin.id).catch(() => []));
+    const count = files.length - failed;
+    record({
+      label: `${count === 1 ? 'Foto' : `${count} Fotos`} bei Punkt ${pin.number} hinzugefügt`,
+      pinId: pin.id,
+      before,
+      after,
+    });
   }
 
   setStatus(
@@ -1540,7 +1718,17 @@ async function renderPhotos() {
     del.setAttribute('aria-label', 'Foto löschen');
     del.addEventListener('click', async () => {
       if (!confirm('Dieses Foto wirklich löschen?')) return;
+      const pin = pins.find((p) => p.id === photo.pinId);
+      const before = pin && snapshot(pin, await store.getPhotos(pin.id));
       await store.deletePhoto(photo.id, currentProject!.id);
+      if (pin && before) {
+        record({
+          label: `Foto bei Punkt ${pin.number} gelöscht`,
+          pinId: pin.id,
+          before,
+          after: snapshot(pin, await store.getPhotos(pin.id)),
+        });
+      }
       await renderPhotos();
       setStatus('Foto gelöscht.');
     });

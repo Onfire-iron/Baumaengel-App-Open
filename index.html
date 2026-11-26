@@ -241,6 +241,13 @@
         <!-- Unten: Punkt setzen und Filter auf dem Plan -->
         <div id="dock">
           <div class="cap glass dock-cap">
+            <!-- Rückgängig und Wiederholen, siehe history.ts -->
+            <button id="undo-btn" class="btn icon" aria-label="Rückgängig" title="Rückgängig" disabled>
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10.500a5.500 5.500 0 0 1 0 11H11" /></svg>
+            </button>
+            <button id="redo-btn" class="btn icon" aria-label="Wiederholen" title="Wiederholen" disabled>
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5M20 9H9.500a5.500 5.500 0 0 0 0 11H13" /></svg>
+            </button>
             <button id="mode-btn" class="btn primary" disabled>
               <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.200 7-11.500A7 7 0 0 0 5 9.500C5 14.800 12 21 12 21ZM12 7v5M9.500 9.500h5" /></svg>
               <span id="mode-label">Punkt setzen</span>
@@ -306,10 +313,17 @@
               <button class="seg-btn intern" data-importance="intern" aria-pressed="false"><span class="sw"></span>Intern</button>
             </div>
           </div>
+          <!-- Untereinander: der häufigste Schritt groß, darunter die übrigen -->
           <div class="capture-actions">
-            <button id="capture-close" class="btn outline">Schließen</button>
-            <button id="capture-details" class="btn soft">Alle Details</button>
             <button id="capture-next" class="btn primary">Nächster Punkt</button>
+            <div class="capture-row">
+              <button id="capture-duplicate" class="btn soft">
+                <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h11v11H9zM5 15H4V4h11v1" /></svg>
+                Nochmal setzen
+              </button>
+              <button id="capture-details" class="btn soft">Alle Details</button>
+            </div>
+            <button id="capture-close" class="btn capture-close">Schließen</button>
           </div>
         </section>
 
@@ -406,6 +420,12 @@
                 <span id="move-hint" class="switch-hint">Gesperrt</span>
               </span>
               <span class="switch"></span>
+            </button>
+
+            <!-- Kopie an eine neue Stelle setzen: Überschrift, Notizen, Art, Gewerk und Firma kommen mit -->
+            <button id="duplicate-btn" class="btn soft wide duplicate-btn">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h11v11H9zM5 15H4V4h11v1" /></svg>
+              Punkt duplizieren
             </button>
 
             <button id="delete-btn" class="menu-item danger centered" disabled>Punkt löschen</button>
