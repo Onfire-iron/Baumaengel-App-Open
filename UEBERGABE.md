@@ -43,14 +43,42 @@ Node-Version, die TypeScript selbst ausführen kann (ab 22.18). Getestet ist Nod
 |---|---|
 | `npm run dev` | Entwicklungsserver. Offline ist hier abgeschaltet. |
 | `npm run build` | Baut die App nach `dist/`. |
-| `npm run typecheck` | Prüft die Typen in App, `vite.config.ts` und `scripts/`. **Neu.** |
+| `npm run typecheck` | Prüft die Typen in App, Tests, Konfiguration und `scripts/`. |
+| `npm test` | Führt die automatischen Tests aus (`tests/`, etwa 2 Sekunden), siehe "Automatische Tests". |
+| `npm run test:watch` | Wie `npm test`, wiederholt die Tests bei jeder Änderung. |
 | `npm run preview` | Zeigt den fertigen Build lokal an. |
 | `npm run wlan` | Baut und startet HTTPS auf Port 4173 fürs iPad im selben WLAN. |
-| `npm run deploy` | Prüft, baut und lädt die App per SFTP auf den Webspace, siehe unten. |
-| `npm run android` | Baut die Android-App als Debug-APK, siehe "Android-App". |
+| `npm run deploy` | Prüft, testet, baut und lädt die App per SFTP auf den Webspace, siehe unten. |
+| `npm run android` | Prüft, testet und baut die Android-App als Debug-APK, siehe "Android-App". |
 
 `npm run build` prüft keine Typen, denn Vite entfernt sie nur. Vor jedem Commit deshalb
-`npm run typecheck` **und** `npm run build` ausführen.
+`npm run typecheck`, `npm test` **und** `npm run build` ausführen.
+
+## Automatische Tests
+
+Seit Etappe 4.34 mit [Vitest](https://vitest.dev). Die Tests laufen ohne Browser: `jsdom` stellt die
+Browser-Teile bereit (DOMParser, Blob), `fake-indexeddb` eine leere Datenbank je Testdatei.
+Einstellungen in `vitest.config.ts`, Tests in `tests/`:
+
+| Datei | Prüft |
+|---|---|
+| `migrations.test.ts` | Erster Start und die Umstellung alter Datenbanken (Version 8 und 9) bis zur aktuellen |
+| `backup.test.ts` | Backup sichern und auf leerem Gerät einlesen (alle Felder, Fotos, Nummern), Sammelbackup, Backups der Version 2, fremde und beschädigte Dateien |
+| `master-entries.test.ts` | Gleichheit von Namen (`nameKey`, `entryKey`), Vorgaben, Prüfen von Einträgen aus Dateien |
+| `master-merge.test.ts` | Stammdaten anlegen und zusammenführen (`addMaster`, `mergeMaster`) |
+| `list-import.test.ts` | Excel lesen (beide Speicherarten) und den Import mit allen Zeilen-Zuständen |
+| `history.test.ts` | Rückgängig/Wiederholen, Zusammenfassen beim Tippen, Grenze von 50 Schritten |
+| `control-fields.test.ts` | Aufzählungen erkennen, Vorgabe der Veranlassung |
+
+Hilfen in `tests/helpers/`: `database.ts` legt eine Datenbank im Aufbau einer alten Version an und
+lädt `db.ts` danach frisch, sodass die Umstellungen laufen. `xlsx.ts` baut kleine Excel-Dateien.
+
+- **Neue Datenbank-Version:** In `migrations.test.ts` einen Fall ergänzen, der eine Datenbank der
+  bisherigen Version mit typischen Daten anlegt und prüft, was danach da sein muss.
+- **Neues Backup-Feld:** In `buildProject` (`backup.test.ts`) setzen und nach dem Einlesen prüfen.
+- Module, die beim Laden Fenster aus `index.html` suchen (z. B. `list-import.ts`), lassen sich nicht
+  direkt testen. Darum steckt die Logik in eigenen Modulen ohne Fenster (z. B. `list-import-plan.ts`).
+- Oberfläche und PDF-Bericht sind nicht abgedeckt, die werden weiter im Browser geprüft.
 
 ## Veröffentlichen (Webhoster mit Apache, SFTP)
 
@@ -170,8 +198,10 @@ gedacht. Für die echte Verteilung braucht es einen eigenen Schlüssel, der sich
 ```
 index.html            Seite mit allen Ansichten und Fenstern, lädt src/main.ts
 vite.config.ts        Build, PWA, WLAN-Vorschau
-tsconfig.json         TypeScript-Einstellungen für src/ (Browser)
-tsconfig.node.json    TypeScript-Einstellungen für vite.config.ts und scripts/ (Node)
+tsconfig.json         TypeScript-Einstellungen für src/ und tests/ (Browser)
+tsconfig.node.json    TypeScript-Einstellungen für vite.config.ts, vitest.config.ts und scripts/ (Node)
+vitest.config.ts      Automatische Tests (npm test)
+tests/                Tests und Hilfen, siehe "Automatische Tests"
 scripts/
   copy-pdfjs-assets.ts  kopiert PDF.js-Hilfsdateien nach public/pdfjs (läuft vor dev und build)
   make-cert.ts          Zertifikate für den WLAN-Test
@@ -205,7 +235,8 @@ src/
   party-fields.ts     Eingabefelder der Beteiligten mit "Aus der Liste" (Projekt- und Berichtsfenster)
   master-entries.ts   Stammdaten: Aufbau der Einträge, Vorgaben, feste Kennungen
   master-data.ts      Stammdaten als Datei: "Listen sichern" / "Listen einlesen"
-  list-import.ts      Excel-Vorlage einlesen: Prüfung der Zeilen und Vorschau-Fenster
+  list-import-plan.ts Excel-Vorlage: Zeilen prüfen und den Import planen (ohne Fenster)
+  list-import.ts      Excel-Vorlage: Vorschau-Fenster
   xlsx-read.ts        Zellen einer .xlsx lesen (ZIP + XML, ohne eigene Excel-Bibliothek)
   outside-tap.ts      Tippen neben ein Fenster schließt es (wie sein Schließen-Knopf)
   history.ts          Rückgängig/Wiederholen: Verlauf der Änderungen an Mängeln
