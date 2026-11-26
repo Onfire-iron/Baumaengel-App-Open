@@ -170,6 +170,9 @@ nennt den SDK-Pfad und ist nicht in Git. Capacitor 8.6.2 verlangt compileSdk 36 
 - Backups und Berichte: Herunterladen gibt es in der Hülle nicht. `saveFile` schreibt die Datei
   stückweise nach `Documents/Baumaengel/` (ab Android 11 ohne Berechtigung, die App darf dort nur ihre
   eigenen Dateien ändern; gibt es den Namen schon von einer früheren Installation, kommt die Uhrzeit dazu).
+  Der Bericht öffnet sich danach gleich in der PDF-App (seit 4.35, `openNativeFile` in `native.ts` und die
+  Erweiterung `FileViewerPlugin.java`, die die Datei über den FileProvider weitergibt). Ohne festgelegte
+  Standard-App fragt Android einmal nach ("Immer" merkt die Wahl). Backups und Listen werden nur gespeichert.
 - Links mit `target="_blank"` (Google Maps) gibt die App an Android weiter, damit die Maps-App öffnet.
 - Kein Service Worker: Alle Dateien stecken in der APK. Updates der App gibt es nur mit neuer APK.
 - Die Daten der App liegen getrennt von denen in Chrome (andere Adresse: `https://localhost`).

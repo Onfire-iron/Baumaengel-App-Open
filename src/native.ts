@@ -123,6 +123,8 @@ function forget() {
 
 // ---------- Dateien (Backups, Berichte) ----------
 
+// Gespeichert wird in Documents/Baumaengel. Der Bericht öffnet sich danach gleich (openNativeFile).
+
 // Ab Android 11 darf die App ohne Berechtigung im öffentlichen Ordner "Documents" eigene Dateien
 // anlegen. Dort findet man sie in "Eigene Dateien" bzw. "Dateien". Stückweise geschrieben, damit
 // große Backups nicht auf einmal im Speicher landen.
@@ -144,6 +146,19 @@ export async function saveNativeFile(blob: Blob, fileName: string): Promise<stri
     await writeChunks(Filesystem, Directory.Documents, `${FOLDER}/${name}`, blob);
   }
   return `Documents/${FOLDER}/${name}`;
+}
+
+// Eigene Android-Erweiterung (android/.../FileViewerPlugin.java): öffnet eine gespeicherte Datei in der
+// passenden App, z. B. den Bericht in der PDF-Anzeige. savedAt wie von saveNativeFile geliefert.
+interface FileViewerPlugin {
+  open(options: { path: string; mimeType: string }): Promise<void>;
+}
+const FileViewer = registerPlugin<FileViewerPlugin>('FileViewer');
+
+export async function openNativeFile(savedAt: string, mimeType: string): Promise<void> {
+  const { Directory, Filesystem } = await import('@capacitor/filesystem');
+  const { uri } = await Filesystem.getUri({ directory: Directory.Documents, path: savedAt.replace(/^Documents\//, '') });
+  await FileViewer.open({ path: uri, mimeType });
 }
 
 type FilesystemApi = typeof import('@capacitor/filesystem').Filesystem;

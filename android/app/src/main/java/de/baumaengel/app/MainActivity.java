@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Eigene Erweiterungen müssen vor dem Start der Brücke angemeldet sein
         registerPlugin(GalleryPlugin.class);
+        registerPlugin(FileViewerPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

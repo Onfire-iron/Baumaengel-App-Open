@@ -21,6 +21,7 @@ import { createPartyFields } from './party-fields.ts';
 import { INFO_PAGE_PARTIES, PARTIES } from './parties.ts';
 import { shrinkPhoto } from './photos.ts';
 import { activeProfileName } from './profiles.ts';
+import { openNativeFile } from './native.ts';
 import { saveFile, safeFileName } from './share.ts';
 import type { Defect, Importance, Plan, Project, ReportSettings } from './types.ts';
 import { clickVisible, closeOnOutsideTap } from './outside-tap.ts';
@@ -557,6 +558,13 @@ document.getElementById('report-save')!.addEventListener('click', async () => {
   try {
     const savedAt = await saveFile(result!);
     doneText.textContent = savedAt ? `Der Bericht wurde gespeichert unter ${savedAt}.` : 'Der Bericht wurde übergeben.';
+    // Android-App: gleich in der PDF-Anzeige öffnen. Klappt das nicht, bleibt er trotzdem gespeichert.
+    if (savedAt) {
+      openNativeFile(savedAt, 'application/pdf').catch((err: Error) => {
+        console.warn(err);
+        doneText.textContent += ` Öffnen ging nicht: ${err.message}`;
+      });
+    }
   } catch (err) {
     if ((err as Error).name === 'AbortError') return; // Teilen-Fenster wurde einfach geschlossen
     console.error(err);
